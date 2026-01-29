@@ -29,7 +29,12 @@ const userSchema = new mongoose.Schema(
         organization : {
             type : mongoose.Schema.Types.ObjectId,
             ref : "Organization"
-        }
+        },
+
+        documentsUploaded : {
+            type : Boolean,
+            default : false
+        },
 
     }, 
 

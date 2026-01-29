@@ -4,6 +4,7 @@ import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
+import driverRoutes from "./routes/driverRoutes.js";
 
 const app = express();
 
@@ -13,6 +14,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/otp", otpRoutes);
+app.use("api/driver", driverRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend is running");
