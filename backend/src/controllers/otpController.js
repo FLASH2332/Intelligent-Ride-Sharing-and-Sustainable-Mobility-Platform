@@ -1,4 +1,4 @@
-import { sendOTPEmail, sendWelcomeEmail } from '../services/emailService.js';
+import { sendOTPEmail } from '../services/emailService.js';
 
 // In-memory OTP storage (for production, use Redis or database)
 const otpStore = new Map();

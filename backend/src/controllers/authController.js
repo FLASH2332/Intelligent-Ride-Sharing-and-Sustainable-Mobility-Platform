@@ -19,7 +19,8 @@ export const signup = async (req, res) => {
     });
 
     res.status(201).json({ message: "User created", userId: user._id });
-  } catch (error) {
+  } catch (_error) {
+    console.error('Signup error:', _error);
     res.status(500).json({ message: "Signup failed" });
   }
 };
@@ -43,7 +44,8 @@ export const login = async (req, res) => {
     );
 
     res.json({ token });
-  } catch (error) {
+  } catch (_error) {
+    console.error('Login error:', _error);
     res.status(500).json({ message: "Login failed" });
   }
 };

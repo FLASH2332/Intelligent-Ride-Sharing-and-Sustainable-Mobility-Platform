@@ -1,5 +1,3 @@
-import React from 'react';
-
 const StatCard = ({ value, label }) => {
   return (
     <div className="bg-white rounded-xl p-6 shadow-lg border border-emerald-200">

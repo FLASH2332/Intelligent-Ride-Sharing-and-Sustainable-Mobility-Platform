@@ -1,4 +1,3 @@
-import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, Users, TrendingUp, Shield, Car, Sprout } from 'lucide-react';
 import Header from '../components/Header';

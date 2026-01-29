@@ -1,5 +1,3 @@
-import React from 'react';
-
 const FeatureCard = ({ icon, title, description }) => {
   return (
     <div className="p-6 rounded-xl border border-stone-200 hover:border-emerald-300 hover:shadow-lg transition-all duration-300 bg-stone-50">

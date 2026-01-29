@@ -1,6 +1,5 @@
 import express from "express";
 import protect from "../middlewares/authMiddleware.js";
-import authorize from "../middlewares/roleMiddleware.js";
 import upload from "../config/multer.js";
 import User from "../models/User.js";
 import requireDriver from "../middlewares/driverMiddleware.js";
@@ -27,7 +26,8 @@ router.post(
 
             res.json({message : "Document uploaded Successfully"});
 
-        } catch (error){
+        } catch (_error){
+            console.error('Document Upload error:', _error);
             res.status(500).json({message : "Upload Failed"});
         }
 
@@ -44,7 +44,8 @@ router.post(
         });
   
         res.json({ message: "Driver mode enabled" });
-      } catch (error) {
+      } catch (_error) {
+        console.error('Enable Driver Mode error:', _error);
         res.status(500).json({ message: "Failed to enable driver mode" });
       }
     }

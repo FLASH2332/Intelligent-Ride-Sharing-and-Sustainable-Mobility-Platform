@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, Shield } from 'lucide-react';
 import InputField from '../components/InputField';
@@ -108,7 +108,8 @@ const Login = () => {
 
           {/* Toggle to Signup */}
           <p className="text-center text-stone-600 mt-6">
-            Don't have an account?{' '}
+            Don&apos;t have an account?{' '}
+
             <button 
               onClick={() => navigate('/signup')}
               className="text-emerald-600 hover:text-emerald-700 font-semibold"

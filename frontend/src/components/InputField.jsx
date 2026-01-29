@@ -1,5 +1,3 @@
-import React from 'react';
-
 const InputField = ({ label, type, name, value, onChange, placeholder, required, hint, maxLength }) => {
   return (
     <div>

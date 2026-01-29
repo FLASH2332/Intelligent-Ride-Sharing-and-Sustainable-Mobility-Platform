@@ -1,0 +1,17 @@
+{
+  "name": "intelligent-ride-sharing-platform",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.0"
+  },
+  "lint-staged": {
+    "frontend/**/*.{js,jsx}": "npm --prefix frontend run lint",
+    "backend/**/*.js": "npm --prefix backend run lint"
+  }
+}

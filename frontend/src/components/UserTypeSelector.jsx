@@ -1,5 +1,3 @@
-import React from 'react';
-
 const UserTypeSelector = ({ userType, setUserType }) => {
   const userTypes = [
     { value: 'employee', label: 'Employee' },

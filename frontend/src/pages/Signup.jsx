@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, Shield } from 'lucide-react';
 import InputField from '../components/InputField';
@@ -229,7 +229,7 @@ const Signup = () => {
                   maxLength="6"
                 />
                 <p className="text-sm text-stone-600 text-center">
-                  Didn't receive code?{' '}
+                  Didn&apos;t receive code?{' '}
                   <button 
                     type="button" 
                     onClick={resendOTP}
