@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema(
 
         role : {
             type : String,
-            enum : ["EMPLOYEE", "DRIVER", "ORG_ADMIN", "PLATFORM_ADMIN"],
+            enum : ["EMPLOYEE", "ORG_ADMIN", "PLATFORM_ADMIN"],
             default : "EMPLOYEE"
         },
 
@@ -35,6 +35,12 @@ const userSchema = new mongoose.Schema(
             type : Boolean,
             default : false
         },
+
+        isDriver: {
+            type: Boolean,
+            default: false,
+        },
+          
 
     }, 
 
