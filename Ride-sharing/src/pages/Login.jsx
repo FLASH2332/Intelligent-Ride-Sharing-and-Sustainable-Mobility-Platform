@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Leaf, Shield } from 'lucide-react';
 import InputField from '../components/InputField';
+import { authService } from '../services/authService';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -9,15 +10,29 @@ const Login = () => {
     email: '',
     password: ''
   });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError(''); // Clear error when user starts typing
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // TODO: Implement login API call
-    console.log('Login submitted', formData);
+    setLoading(true);
+    setError('');
+
+    const result = await authService.login(formData.email, formData.password);
+
+    if (result.success) {
+      // Login successful, redirect to dashboard or home
+      navigate('/');
+    } else {
+      setError(result.error || 'Login failed. Please try again.');
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -49,6 +64,13 @@ const Login = () => {
             Sign in to continue your journey
           </p>
 
+          {/* Error Message */}
+          {error && (
+            <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <InputField 
@@ -77,9 +99,10 @@ const Login = () => {
 
             <button
               type="submit"
-              className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-lg shadow-lg shadow-emerald-600/20"
+              disabled={loading}
+              className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-lg shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Sign In
+              {loading ? 'Signing In...' : 'Sign In'}
             </button>
           </form>
 

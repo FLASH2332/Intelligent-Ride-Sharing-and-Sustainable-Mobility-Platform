@@ -3,11 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Leaf, Shield } from 'lucide-react';
 import InputField from '../components/InputField';
 import UserTypeSelector from '../components/UserTypeSelector';
+import { authService } from '../services/authService';
 
 const Signup = () => {
   const navigate = useNavigate();
   const [userType, setUserType] = useState('employee');
   const [step, setStep] = useState(1); // 1: Details, 2: OTP Verification
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -19,23 +22,103 @@ const Signup = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    setError(''); // Clear error when user starts typing
   };
 
-  const handleSubmit = (e) => {
+  const validateForm = () => {
+    if (!formData.fullName.trim()) {
+      setError('Full name is required');
+      return false;
+    }
+    if (!formData.email.trim()) {
+      setError('Email is required');
+      return false;
+    }
+    if (!formData.phone.trim()) {
+      setError('Phone number is required');
+      return false;
+    }
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return false;
+    }
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match');
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    
     if (step === 1) {
-      // TODO: Send OTP to email
-      console.log('Sending OTP to', formData.email);
-      setStep(2);
+      // Validate form
+      if (!validateForm()) {
+        return;
+      }
+      
+      // Send OTP to email
+      setLoading(true);
+      setError('');
+      
+      const result = await authService.sendOTP(formData.email);
+      
+      if (result.success) {
+        setStep(2);
+      } else {
+        setError(result.error || 'Failed to send OTP. Please try again.');
+      }
+      
+      setLoading(false);
     } else {
-      // TODO: Verify OTP and complete signup
-      console.log('Signup completed', { ...formData, userType });
+      // Verify OTP and complete signup
+      setLoading(true);
+      setError('');
+
+      // First verify OTP
+      const otpResult = await authService.verifyOTP(formData.email, formData.otp);
+
+      if (!otpResult.success) {
+        setError(otpResult.error || 'Invalid OTP. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // OTP verified, now create account
+      const signupResult = await authService.signup({
+        fullName: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+        userType
+      });
+
+      if (signupResult.success) {
+        // Signup successful, redirect to login
+        navigate('/login');
+      } else {
+        setError(signupResult.error || 'Signup failed. Please try again.');
+      }
+
+      setLoading(false);
     }
   };
 
-  const resendOTP = () => {
-    // TODO: Implement resend OTP
-    console.log('Resending OTP to', formData.email);
+  const resendOTP = async () => {
+    setLoading(true);
+    setError('');
+    
+    const result = await authService.resendOTP(formData.email);
+    
+    if (result.success) {
+      setError(''); // Clear any error
+      // Could show a success message here
+      console.log('OTP resent successfully');
+    } else {
+      setError(result.error || 'Failed to resend OTP. Please try again.');
+    }
+    
+    setLoading(false);
   };
 
   return (
@@ -68,6 +151,13 @@ const Signup = () => {
               ? 'Create your account to start carpooling' 
               : `We sent a code to ${formData.email}`}
           </p>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+              {error}
+            </div>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -153,9 +243,10 @@ const Signup = () => {
 
             <button
               type="submit"
-              className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-lg shadow-lg shadow-emerald-600/20"
+              disabled={loading}
+              className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-lg shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {step === 1 ? 'Continue' : 'Verify & Complete'}
+              {step === 1 ? 'Continue' : loading ? 'Verifying...' : 'Verify & Complete'}
             </button>
           </form>
 
