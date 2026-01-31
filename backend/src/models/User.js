@@ -1,50 +1,117 @@
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
+  {
+    // --------------------
+    // Identity (Login)
+    // --------------------
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      index: true,
+    },
 
-    {
+    phone: {
+      type: String,
+      required: true,
+      unique: true,
+    },
 
-        name : {
-            type : String,
-            required : true
-        },
+    passwordHash: {
+      type: String,
+      required: true,
+    },
 
-        email : {
-            type : String,
-            required : true,
-            unique : true
-        },
+    // --------------------
+    // Verification State
+    // --------------------
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
 
-        password : {
-            type : String,
-            required : true,
-        },
+    isPhoneVerified: {
+      type: Boolean,
+      default: false,
+    },
 
-        role : {
-            type : String,
-            enum : ["EMPLOYEE", "ORG_ADMIN", "PLATFORM_ADMIN"],
-            default : "EMPLOYEE"
-        },
+    // --------------------
+    // Role & Organization
+    // --------------------
+    role: {
+      type: String,
+      enum: ["EMPLOYEE", "ORG_ADMIN", "PLATFORM_ADMIN"],
+      default: "EMPLOYEE",
+    },
 
-        organization : {
-            type : mongoose.Schema.Types.ObjectId,
-            ref : "Organization"
-        },
+    // Every user belongs to exactly ONE org
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: true,
+      immutable: true,
+    },
 
-        documentsUploaded : {
-            type : Boolean,
-            default : false
-        },
+    // Org admin approval for employees
+    approvalStatus: {
+      type: String,
+      enum: ["PENDING", "APPROVED", "REJECTED"],
+      default: "PENDING",
+    },
 
-        isDriver: {
-            type: Boolean,
-            default: false,
-        },
-          
+    // --------------------
+    // Profile Information
+    // --------------------
+    name: {
+      type: String,
+      trim: true,
+    },
 
-    }, 
+    dob: {
+      type: Date,
+    },
 
-    { timestamps : true }
+    gender: {
+      type: String,
+      enum: ["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"],
+    },
+
+    profileCompleted: {
+      type: Boolean,
+      default: false,
+    },
+
+    // --------------------
+    // Driver Capability
+    // --------------------
+    isDriver: {
+      type: Boolean,
+      default: false,
+    },
+
+    driverStatus: {
+      type: String,
+      enum: ["NONE", "PENDING", "APPROVED", "REJECTED"],
+      default: "NONE",
+    },
+
+    documentsUploaded: {
+      type: Boolean,
+      default: false,
+    },
+
+    // --------------------
+    // System Metadata
+    // --------------------
+    lastLogin: {
+      type: Date,
+    },
+  },
+  {
+    timestamps: true, // createdAt, updatedAt
+  }
 );
 
 export default mongoose.model("User", userSchema);
