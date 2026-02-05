@@ -27,7 +27,7 @@ const Login = () => {
 
     if (result.success) {
       // Login successful, redirect to dashboard or home
-      navigate('/');
+      navigate('/dashboard');
     } else {
       setError(result.error || 'Login failed. Please try again.');
     }

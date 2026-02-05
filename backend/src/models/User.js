@@ -46,12 +46,13 @@ const userSchema = new mongoose.Schema(
       default: "EMPLOYEE",
     },
 
-    // Every user belongs to exactly ONE org
+    // Every user belongs to exactly ONE org except Platform Admin
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
-      required: true,
-      immutable: true,
+      required: function () {
+        return this.role !== "PLATFORM_ADMIN";
+      },
     },
 
     // Org admin approval for employees
