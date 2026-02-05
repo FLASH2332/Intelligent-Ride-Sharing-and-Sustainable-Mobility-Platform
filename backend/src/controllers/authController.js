@@ -95,9 +95,12 @@ export const loginUser = async (req, res) => {
   
       if (user.approvalStatus !== "APPROVED") {
         return res.status(403).json({
-          message: "Account not approved yet",
+          message:
+            "Your account is awaiting organization admin approval. Please contact your administrator.",
+          approvalStatus: user.approvalStatus,
         });
       }
+      
   
       const token = generateToken({
         userId: user._id,

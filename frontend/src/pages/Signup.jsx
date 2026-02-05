@@ -65,7 +65,8 @@ const Signup = () => {
     });
 
     if (result.success) {
-      navigate("/login");
+      navigate("/awaiting-approval");
+
     } else {
       setError(result.error || "Signup failed");
     }
