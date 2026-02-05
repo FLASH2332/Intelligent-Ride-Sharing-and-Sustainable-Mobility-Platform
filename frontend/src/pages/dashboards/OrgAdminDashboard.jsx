@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Users, CheckCircle } from "lucide-react";
 
 const OrgAdminDashboard = () => {
   const [users, setUsers] = useState([]);
@@ -52,14 +53,12 @@ const OrgAdminDashboard = () => {
         throw new Error("Approval failed");
       }
 
-      // Remove approved user from UI
       setUsers((prev) => prev.filter((u) => u._id !== userId));
     } catch (err) {
       alert(err.message);
     }
   };
 
-  // ✅ THESE RETURNS ARE NOW INSIDE THE COMPONENT
   if (loading) {
     return <p className="p-8">Loading pending users...</p>;
   }
@@ -70,42 +69,62 @@ const OrgAdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-stone-50 p-8">
-      <h1 className="text-3xl font-bold text-stone-900 mb-6">
-        Org Admin Dashboard
-      </h1>
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Users className="w-8 h-8 text-emerald-600" />
+        <h1 className="text-3xl font-bold text-stone-900">
+          Organization Admin
+        </h1>
+      </div>
 
+      {/* Pending Count */}
+      <div className="mb-6 text-sm text-stone-600">
+        Pending approvals:{" "}
+        <span className="font-semibold text-emerald-700">
+          {users.length}
+        </span>
+      </div>
+
+      {/* Empty State */}
       {users.length === 0 ? (
-        <p className="text-stone-600">No pending users 🎉</p>
+        <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-xl flex items-center gap-3">
+          <CheckCircle className="w-6 h-6 text-emerald-600" />
+          <p className="text-emerald-800 font-medium">
+            🎉 No pending users at the moment
+          </p>
+        </div>
       ) : (
-        <table className="w-full border-collapse bg-white rounded-xl shadow">
-          <thead>
-            <tr className="border-b">
-              <th className="text-left p-4">Email</th>
-              <th className="text-left p-4">Phone</th>
-              <th className="text-left p-4">Joined</th>
-              <th className="text-left p-4">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {users.map((u) => (
-              <tr key={u._id} className="border-b">
-                <td className="p-4">{u.email}</td>
-                <td className="p-4">{u.phone}</td>
-                <td className="p-4">
-                  {new Date(u.createdAt).toLocaleDateString()}
-                </td>
-                <td className="p-4">
-                  <button
-                    onClick={() => approveUser(u._id)}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700"
-                  >
-                    Approve
-                  </button>
-                </td>
+        <div className="overflow-x-auto bg-white rounded-xl shadow border">
+          <table className="w-full border-collapse">
+            <thead className="bg-stone-100">
+              <tr className="border-b">
+                <th className="text-left p-4">Email</th>
+                <th className="text-left p-4">Phone</th>
+                <th className="text-left p-4">Joined</th>
+                <th className="text-left p-4">Action</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {users.map((u) => (
+                <tr key={u._id} className="border-b hover:bg-stone-50">
+                  <td className="p-4">{u.email}</td>
+                  <td className="p-4">{u.phone}</td>
+                  <td className="p-4">
+                    {new Date(u.createdAt).toLocaleDateString()}
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={() => approveUser(u._id)}
+                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition"
+                    >
+                      Approve
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

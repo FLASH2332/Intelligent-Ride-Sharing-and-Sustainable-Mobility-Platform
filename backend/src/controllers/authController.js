@@ -114,8 +114,10 @@ export const loginUser = async (req, res) => {
           id: user._id,
           email: user.email,
           role: user.role,
+          approvalStatus: user.approvalStatus,
         },
       });
+      
     } catch (err) {
       console.error("Login Error:", err);
       res.status(500).json({ message: "Login failed" });
