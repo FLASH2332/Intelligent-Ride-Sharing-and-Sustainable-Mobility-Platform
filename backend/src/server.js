@@ -4,6 +4,7 @@ import app from "./app.js";
 import dotenv from "dotenv";
 import connectDB from "./config/db.js";
 import setupRideSocket from "./sockets/rideSocket.js";
+import { setIO } from "./config/socket.js";
 
 dotenv.config();
 connectDB();
@@ -20,6 +21,9 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"]
   }
 });
+
+// Store io instance for use in controllers
+setIO(io);
 
 // Setup socket handlers
 setupRideSocket(io);
