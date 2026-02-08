@@ -1,47 +1,68 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Leaf, Shield } from 'lucide-react';
-import InputField from '../components/InputField';
-import { authService } from '../services/authService';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Leaf, Shield } from "lucide-react";
+import InputField from "../components/InputField";
+import { authService } from "../services/authService";
 
 const Login = () => {
   const navigate = useNavigate();
+
   const [formData, setFormData] = useState({
-    email: '',
-    password: ''
+    email: "",
+    password: "",
   });
+  
+
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    setError(''); // Clear error when user starts typing
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
+    setError("");
 
-    const result = await authService.login(formData.email, formData.password);
-
-    if (result.success) {
-      // Login successful, redirect to dashboard or home
-      navigate('/dashboard');
-    } else {
-      setError(result.error || 'Login failed. Please try again.');
-    }
+    const result = await authService.login(
+      formData.email,
+      formData.password
+    );
 
     setLoading(false);
+
+    if (!result.success) {
+      // Awaiting approval flow
+      if (result.approvalStatus === "PENDING") {
+        navigate("/awaiting-approval");
+        return;
+      }
+
+      setError(result.error || "Login failed. Please try again.");
+      return;
+    }
+
+    const { user } = result.data;
+
+    // First-time login → complete profile
+    if (!user.profileCompleted) {
+      navigate("/complete-profile");
+      return;
+    }
+
+    // Normal login
+    navigate("/dashboard");
   };
 
   return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center px-6 py-12">
       <div className="w-full max-w-md">
         {/* Back Button */}
-        <button 
-          onClick={() => navigate('/')}
-          className="mb-6 text-stone-600 hover:text-emerald-700 transition-colors flex items-center gap-2 font-medium"
+        <button
+          onClick={() => navigate("/")}
+          className="mb-6 text-stone-600 hover:text-emerald-700 font-medium"
         >
           ← Back to home
         </button>
@@ -53,10 +74,11 @@ const Login = () => {
             <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center">
               <Leaf className="w-7 h-7 text-white" />
             </div>
-            <span className="text-2xl font-bold text-stone-800">GreenCommute</span>
+            <span className="text-2xl font-bold text-stone-800">
+              GreenCommute
+            </span>
           </div>
 
-          {/* Title */}
           <h2 className="text-2xl font-bold text-stone-900 text-center mb-2">
             Welcome Back
           </h2>
@@ -64,16 +86,15 @@ const Login = () => {
             Sign in to continue your journey
           </p>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
             <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               {error}
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
-            <InputField 
+            <InputField
               label="Email"
               type="email"
               name="email"
@@ -82,7 +103,8 @@ const Login = () => {
               placeholder="john@company.com"
               required
             />
-            <InputField 
+
+            <InputField
               label="Password"
               type="password"
               name="password"
@@ -91,8 +113,13 @@ const Login = () => {
               placeholder="••••••••"
               required
             />
+
             <div className="flex justify-end">
-              <button type="button" className="text-sm text-emerald-600 hover:text-emerald-700 font-medium">
+              <button
+                type="button"
+                onClick={() => navigate("/forgot-password")}
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+              >
                 Forgot password?
               </button>
             </div>
@@ -100,18 +127,16 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold text-lg shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-semibold text-lg shadow disabled:opacity-50"
             >
-              {loading ? 'Signing In...' : 'Sign In'}
+              {loading ? "Signing In..." : "Sign In"}
             </button>
           </form>
 
-          {/* Toggle to Signup */}
           <p className="text-center text-stone-600 mt-6">
-            Don&apos;t have an account?{' '}
-
-            <button 
-              onClick={() => navigate('/signup')}
+            Don&apos;t have an account?{" "}
+            <button
+              onClick={() => navigate("/signup")}
               className="text-emerald-600 hover:text-emerald-700 font-semibold"
             >
               Sign up
@@ -119,7 +144,6 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Trust Badge */}
         <div className="mt-6 text-center text-sm text-stone-500 flex items-center justify-center gap-2">
           <Shield className="w-4 h-4" />
           <span>Secure authentication with corporate email verification</span>

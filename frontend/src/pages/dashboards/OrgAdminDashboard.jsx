@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Users, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Users, CheckCircle, Car } from "lucide-react";
 
 const OrgAdminDashboard = () => {
+  const navigate = useNavigate();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -70,11 +73,22 @@ const OrgAdminDashboard = () => {
   return (
     <div className="min-h-screen bg-stone-50 p-8">
       {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <Users className="w-8 h-8 text-emerald-600" />
-        <h1 className="text-3xl font-bold text-stone-900">
-          Organization Admin
-        </h1>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <Users className="w-8 h-8 text-emerald-600" />
+          <h1 className="text-3xl font-bold text-stone-900">
+            Organization Admin
+          </h1>
+        </div>
+
+        {/* 🔑 NEW: Driver Requests CTA */}
+        <button
+          onClick={() => navigate("/admin/driver-requests")}
+          className="flex items-center gap-2 px-4 py-2 bg-stone-800 text-white rounded-lg hover:bg-stone-900 transition"
+        >
+          <Car className="w-4 h-4" />
+          Driver Requests
+        </button>
       </div>
 
       {/* Pending Count */}

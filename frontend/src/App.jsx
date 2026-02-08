@@ -7,7 +7,12 @@ import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import AwaitingApproval from "./pages/AwaitingApproval";
+import CompleteProfile from "./pages/CompleteProfile";
 import Dashboard from "./pages/Dashboard";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
+import AdminDriverRequests from "./pages/AdminDriverRequests";
+import DriverUpload from "./pages/DriverUpload";
 
 function App() {
   return (
@@ -19,8 +24,20 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/awaiting-approval" element={<AwaitingApproval />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-          {/* Protected */}
+          {/* Authenticated but profile may be incomplete */}
+          <Route
+            path="/complete-profile"
+            element={
+              <ProtectedRoute>
+                <CompleteProfile />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fully protected */}
           <Route
             path="/dashboard"
             element={
@@ -29,6 +46,26 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/driver-requests"
+            element={
+              <ProtectedRoute role="ORG_ADMIN">
+                <AdminDriverRequests />
+              </ProtectedRoute>
+            }
+          />
+
+<Route
+  path="/driver/upload"
+  element={
+    <ProtectedRoute>
+      <DriverUpload />
+    </ProtectedRoute>
+  }
+/>
+
+
         </Routes>
       </Layout>
     </Router>

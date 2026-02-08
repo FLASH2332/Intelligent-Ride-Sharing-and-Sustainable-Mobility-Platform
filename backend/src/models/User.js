@@ -25,6 +25,12 @@ const userSchema = new mongoose.Schema(
     },
 
     // --------------------
+    // Password Reset
+    // --------------------
+    passwordResetToken: String,
+    passwordResetExpires: Date,
+
+    // --------------------
     // Verification State
     // --------------------
     isEmailVerified: {
@@ -46,7 +52,6 @@ const userSchema = new mongoose.Schema(
       default: "EMPLOYEE",
     },
 
-    // Every user belongs to exactly ONE org except Platform Admin
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Organization",
@@ -55,7 +60,6 @@ const userSchema = new mongoose.Schema(
       },
     },
 
-    // Org admin approval for employees
     approvalStatus: {
       type: String,
       enum: ["PENDING", "APPROVED", "REJECTED"],
@@ -70,13 +74,32 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
-    dob: {
-      type: Date,
-    },
+    dob: Date,
 
     gender: {
       type: String,
       enum: ["MALE", "FEMALE", "OTHER", "PREFER_NOT_TO_SAY"],
+    },
+
+    homeAddress: {
+      type: String,
+      trim: true,
+    },
+
+    workAddress: {
+      type: String,
+      trim: true,
+    },
+
+    emergencyContact: {
+      name: {
+        type: String,
+        trim: true,
+      },
+      phone: {
+        type: String,
+        trim: true,
+      },
     },
 
     profileCompleted: {
@@ -103,15 +126,36 @@ const userSchema = new mongoose.Schema(
       default: false,
     },
 
+
+
+driverReviewedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User", // admin
+},
+
+driverReviewedAt: {
+  type: Date,
+},
+
+driverDocuments: {
+  license: { type: String },
+  rc: { type: String },
+},
+
+
+driverRejectionReason: {
+  type: String,
+},
+
+
+
     // --------------------
     // System Metadata
     // --------------------
-    lastLogin: {
-      type: Date,
-    },
+    lastLogin: Date,
   },
   {
-    timestamps: true, // createdAt, updatedAt
+    timestamps: true,
   }
 );
 
