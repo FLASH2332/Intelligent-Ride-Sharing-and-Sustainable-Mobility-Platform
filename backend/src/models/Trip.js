@@ -106,12 +106,20 @@ const tripSchema = new mongoose.Schema({
   route: {
     type: {
       type: String,
-      enum: ['LineString'],
-      default: 'LineString'
+      enum: ['LineString']
     },
     coordinates: {
       type: [[Number]],
-      default: [[0, 0], [0, 0]]
+      validate: {
+        validator: function(coords) {
+          // Route must have at least 2 distinct vertices
+          if (!coords || coords.length < 2) return false;
+          // Check that not all coordinates are the same
+          const first = coords[0];
+          return coords.some(coord => coord[0] !== first[0] || coord[1] !== first[1]);
+        },
+        message: 'Route must have at least 2 distinct vertices'
+      }
     }
   },
   createdAt: {

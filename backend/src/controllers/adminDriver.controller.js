@@ -12,7 +12,6 @@ export const getDriverRequests = async (req, res) => {
 
     const drivers = await User.find({
       role: "EMPLOYEE",
-      isDriver: true,
       documentsUploaded: true,
       driverStatus: "PENDING",
       organizationId: req.user.organizationId,
@@ -41,6 +40,7 @@ export const approveDriver = async (req, res) => {
     }
 
     driver.driverStatus = "APPROVED";
+    driver.isDriver = true; // Set isDriver to true on approval
     await driver.save();
 
     res.json({ message: "Driver approved successfully" });

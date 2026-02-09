@@ -4,17 +4,17 @@ import { getIO } from '../config/socket.js';
 
 // @desc    Request a ride
 // @route   POST /api/rides/request
-// @access  Private (Passengers only)
+// @access  Private (All users - drivers can also be passengers)
 export const requestRide = async (req, res) => {
   try {
     const { tripId } = req.body;
-    const passengerId = req.user._id;
+    const passengerId = req.user.userId;
 
-    // Check if user is a driver (passengers only can request)
-    if (req.user.isDriver) {
-      return res.status(403).json({
+    // Validate user authentication
+    if (!passengerId) {
+      return res.status(401).json({
         success: false,
-        message: 'Drivers cannot request rides'
+        message: 'Authentication error. Please log out and log back in.'
       });
     }
 
@@ -25,19 +25,6 @@ export const requestRide = async (req, res) => {
       });
     }
 
-    // Check if passenger already has a pending request
-    const existingRequest = await RideRequest.findOne({
-      passengerId,
-      status: 'PENDING'
-    });
-
-    if (existingRequest) {
-      return res.status(400).json({
-        success: false,
-        message: 'You already have a pending ride request'
-      });
-    }
-
     // Check if trip exists and has available seats
     const trip = await Trip.findById(tripId);
 
@@ -45,6 +32,28 @@ export const requestRide = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Trip not found'
+      });
+    }
+
+    // Smart driver check: prevent requesting your own trip
+    if (trip.driverId.toString() === passengerId.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot request a ride for your own trip'
+      });
+    }
+
+    // Check if passenger already has a pending request for this trip
+    const existingRequest = await RideRequest.findOne({
+      passengerId,
+      tripId,
+      status: 'PENDING'
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({
+        success: false,
+        message: 'You already have a pending request for this trip'
       });
     }
 
@@ -107,7 +116,7 @@ export const approveRide = async (req, res) => {
     }
 
     // Check if the user is the driver of this trip
-    if (rideRequest.tripId.driverId.toString() !== req.user._id.toString()) {
+    if (rideRequest.tripId.driverId.toString() !== req.user.userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Only the trip driver can approve this request'
@@ -196,7 +205,7 @@ export const rejectRide = async (req, res) => {
     }
 
     // Check if the user is the driver of this trip
-    if (rideRequest.tripId.driverId.toString() !== req.user._id.toString()) {
+    if (rideRequest.tripId.driverId.toString() !== req.user.userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Only the trip driver can reject this request'
@@ -261,7 +270,7 @@ export const getRideRequestsForTrip = async (req, res) => {
     }
 
     // Check if user is the driver of this trip
-    if (trip.driverId.toString() !== req.user._id.toString()) {
+    if (trip.driverId.toString() !== req.user.userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Only the trip driver can view ride requests'
@@ -294,7 +303,7 @@ export const getRideRequestsForTrip = async (req, res) => {
 // @access  Private
 export const getPassengerRides = async (req, res) => {
   try {
-    const passengerId = req.user._id;
+    const passengerId = req.user.userId;
 
     // Get all ride requests for this passenger
     const rideRequests = await RideRequest.find({ passengerId })

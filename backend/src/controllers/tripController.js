@@ -5,6 +5,14 @@ import Trip from '../models/Trip.js';
 // @access  Private (Drivers only)
 export const createTrip = async (req, res) => {
   try {
+    // Validate user authentication
+    if (!req.user.userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication error. Please log out and log back in.'
+      });
+    }
+
     // Check if user is a driver
     if (!req.user.isDriver) {
       return res.status(403).json({
@@ -55,7 +63,7 @@ export const createTrip = async (req, res) => {
 
     // Prepare trip data
     const tripData = {
-      driverId: req.user._id,
+      driverId: req.user.userId,
       vehicleType,
       totalSeats: parseInt(totalSeats),
       availableSeats: parseInt(totalSeats),
@@ -85,6 +93,20 @@ export const createTrip = async (req, res) => {
           coordinates: [parseFloat(destinationLocation.lng), parseFloat(destinationLocation.lat)]
         }
       };
+    }
+
+    // Set route if both source and destination coordinates are available
+    if (tripData.sourceLocation && tripData.destinationLocation) {
+      const sourceCoords = tripData.sourceLocation.coordinates.coordinates;
+      const destCoords = tripData.destinationLocation.coordinates.coordinates;
+      
+      // Only set route if coordinates are distinct
+      if (sourceCoords[0] !== destCoords[0] || sourceCoords[1] !== destCoords[1]) {
+        tripData.route = {
+          type: 'LineString',
+          coordinates: [sourceCoords, destCoords]
+        };
+      }
     }
 
     // Create trip
@@ -264,7 +286,7 @@ export const searchTrips = async (req, res) => {
 // @access  Private (Driver only)
 export const getDriverTrips = async (req, res) => {
   try {
-    const trips = await Trip.find({ driverId: req.user._id })
+    const trips = await Trip.find({ driverId: req.user.userId })
       .populate('driverId', 'name email')
       .sort({ scheduledTime: -1 });
 
@@ -298,7 +320,7 @@ export const startTrip = async (req, res) => {
     }
 
     // Check if user is the driver of this trip
-    if (trip.driverId.toString() !== req.user._id.toString()) {
+    if (trip.driverId.toString() !== req.user.userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Only the trip driver can start this trip'
@@ -347,7 +369,7 @@ export const endTrip = async (req, res) => {
     }
 
     // Check if user is the driver of this trip
-    if (trip.driverId.toString() !== req.user._id.toString()) {
+    if (trip.driverId.toString() !== req.user.userId.toString()) {
       return res.status(403).json({
         success: false,
         message: 'Only the trip driver can end this trip'

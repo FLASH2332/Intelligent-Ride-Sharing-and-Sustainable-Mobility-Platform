@@ -30,9 +30,8 @@ const rideRequestSchema = new mongoose.Schema({
 });
 
 // Update updatedAt on save
-rideRequestSchema.pre('save', function(next) {
+rideRequestSchema.pre('save', function() {
   this.updatedAt = Date.now();
-  next();
 });
 
 // Index for querying pending requests by passenger

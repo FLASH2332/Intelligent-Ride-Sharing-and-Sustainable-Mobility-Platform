@@ -17,6 +17,12 @@ export const tripService = {
     if (params.destination) queryParams.append('destination', params.destination);
     if (params.vehicleType) queryParams.append('vehicleType', params.vehicleType);
     
+    // Add geolocation coordinates for proximity search
+    if (params.sourceLat) queryParams.append('sourceLat', params.sourceLat);
+    if (params.sourceLng) queryParams.append('sourceLng', params.sourceLng);
+    if (params.destLat) queryParams.append('destLat', params.destLat);
+    if (params.destLng) queryParams.append('destLng', params.destLng);
+    
     return await apiRequest(`/trips/search?${queryParams.toString()}`, {
       method: 'GET',
     });

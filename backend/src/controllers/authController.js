@@ -112,6 +112,7 @@ export const loginUser = async (req, res) => {
       userId: user._id,
       role: user.role,
       organizationId: user.organizationId || null,
+      isDriver: user.isDriver || false,
     });
 
     return res.status(200).json({
@@ -122,6 +123,7 @@ export const loginUser = async (req, res) => {
         role: user.role,
         approvalStatus: user.approvalStatus,
         profileCompleted: user.profileCompleted,
+        isDriver: user.isDriver || false,
       },
     });
   } catch (err) {

@@ -99,13 +99,13 @@ export const requestDriverAccess = async (req, res) => {
       });
     }
 
-    if (user.isDriver) {
+    if (user.isDriver || user.driverStatus === "PENDING") {
       return res.status(400).json({
         message: "Driver request already submitted",
       });
     }
 
-    user.isDriver = true;
+    // Don't set isDriver true until admin approves
     user.driverStatus = "PENDING";
     user.documentsUploaded = false;
 

@@ -19,17 +19,8 @@ const protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Get user from database and attach to request
-    const user = await User.findById(decoded.userId).select("-passwordHash");
-    
-    if (!user) {
-      return res.status(401).json({ 
-        success: false,
-        message: "User not found. Authorization denied." 
-      });
-    }
-
-    req.user = user;
+    // Attach decoded JWT payload to request (contains userId, role, isDriver, etc.)
+    req.user = decoded;
     next();
   } catch (err) {
     console.error("Auth error:", err.message);
