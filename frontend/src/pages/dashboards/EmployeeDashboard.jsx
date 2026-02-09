@@ -91,18 +91,46 @@ const EmployeeDashboard = () => {
       <div className="grid md:grid-cols-3 gap-6">
         {/* Find Rides */}
         <div className="p-6 bg-white border rounded-xl shadow-sm">
-          <h3 className="font-semibold text-lg mb-2">Find Rides</h3>
-          <p className="text-sm text-stone-600">
-            Match with colleagues along your route.
+          <h3 className="font-semibold text-lg mb-2">🔍 Find Rides</h3>
+          <p className="text-sm text-stone-600 mb-4">
+            Search and book rides with colleagues along your route.
           </p>
+          <button
+            onClick={() => navigate("/passenger/search")}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors w-full"
+          >
+            Search Available Trips
+          </button>
         </div>
 
         {/* Offer Ride */}
         <div className="p-6 bg-white border rounded-xl shadow-sm">
-          <h3 className="font-semibold text-lg mb-2">Offer a Ride</h3>
-          <p className="text-sm text-stone-600">
-            Share your commute and save emissions.
+          <h3 className="font-semibold text-lg mb-2">🚗 Offer a Ride</h3>
+          <p className="text-sm text-stone-600 mb-4">
+            Create trips and share your commute to save emissions.
           </p>
+          {user.driverStatus === "APPROVED" ? (
+            <div className="space-y-2">
+              <button
+                onClick={() => navigate("/driver/create-trip")}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors w-full"
+              >
+                Create New Trip
+              </button>
+              <button
+                onClick={() => navigate("/driver/requests")}
+                className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors w-full"
+              >
+                Manage Requests
+              </button>
+            </div>
+          ) : (
+            <p className="text-sm text-amber-600">
+              {user.driverStatus === "PENDING"
+                ? "⏳ Driver approval pending"
+                : "Become an approved driver to offer rides"}
+            </p>
+          )}
         </div>
 
         {/* 🚗 Driver Card */}

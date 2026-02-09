@@ -61,6 +61,13 @@ const Header = () => {
               </button>
 
               <button
+                onClick={() => navigate("/passenger/search")}
+                className="text-stone-700 hover:text-emerald-700 font-medium transition"
+              >
+                Find Rides
+              </button>
+
+              <button
                 onClick={handleLogout}
                 className="flex items-center gap-1 text-red-600 hover:text-red-700 font-medium transition"
               >
