@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
+// Epic-1 Pages
 import LandingPage from "./pages/LandingPage";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
@@ -13,6 +14,13 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import AdminDriverRequests from "./pages/AdminDriverRequests";
 import DriverUpload from "./pages/DriverUpload";
+
+// Epic-2 Driver Pages
+import CreateTrip from './pages/driver/CreateTrip';
+import RideRequests from './pages/driver/RideRequests';
+
+// Epic-2 Passenger Pages
+import SearchTrips from './pages/passenger/SearchTrips';
 
 function App() {
   return (
@@ -56,15 +64,42 @@ function App() {
             }
           />
 
-<Route
-  path="/driver/upload"
-  element={
-    <ProtectedRoute>
-      <DriverUpload />
-    </ProtectedRoute>
-  }
-/>
+          <Route
+            path="/driver/upload"
+            element={
+              <ProtectedRoute>
+                <DriverUpload />
+              </ProtectedRoute>
+            }
+          />
 
+          {/* Epic-2 Driver Routes */}
+          <Route 
+            path="/driver/create-trip" 
+            element={
+              <ProtectedRoute>
+                <CreateTrip />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/driver/requests" 
+            element={
+              <ProtectedRoute>
+                <RideRequests />
+              </ProtectedRoute>
+            } 
+          />
+          
+          {/* Epic-2 Passenger Routes */}
+          <Route 
+            path="/passenger/search" 
+            element={
+              <ProtectedRoute>
+                <SearchTrips />
+              </ProtectedRoute>
+            } 
+          />
 
         </Routes>
       </Layout>
