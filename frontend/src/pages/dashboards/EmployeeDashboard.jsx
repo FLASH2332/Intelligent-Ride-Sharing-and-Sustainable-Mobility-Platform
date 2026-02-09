@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { rideService } from "../../services/rideService";
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
@@ -7,6 +8,8 @@ const EmployeeDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [passengerRides, setPassengerRides] = useState([]);
+  const [ridesLoading, setRidesLoading] = useState(true);
 
   // 🔹 Fetch logged-in user
   useEffect(() => {
@@ -31,6 +34,25 @@ const EmployeeDashboard = () => {
 
     fetchUser();
   }, []);
+
+  // 🔹 Fetch passenger rides
+  useEffect(() => {
+    const fetchPassengerRides = async () => {
+      try {
+        setRidesLoading(true);
+        const data = await rideService.getPassengerRides();
+        setPassengerRides(data.rides || []);
+      } catch (err) {
+        console.error("Error fetching passenger rides:", err);
+      } finally {
+        setRidesLoading(false);
+      }
+    };
+
+    if (user) {
+      fetchPassengerRides();
+    }
+  }, [user]);
 
   // 🔹 Request driver access
   const requestDriver = async () => {
@@ -89,6 +111,83 @@ const EmployeeDashboard = () => {
       </p>
 
       <div className="grid md:grid-cols-3 gap-6">
+        {/* Personal Details */}
+        <div className="p-6 bg-white border rounded-xl shadow-sm">
+          <h3 className="font-semibold text-lg mb-4 flex items-center gap-2">
+            👤 Personal Details
+          </h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-stone-600">Name:</span>
+              <span className="font-medium">{user.name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-600">Email:</span>
+              <span className="font-medium text-xs">{user.email}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-stone-600">Role:</span>
+              <span className="font-medium capitalize">{user.role}</span>
+            </div>
+            {user.phone && (
+              <div className="flex justify-between">
+                <span className="text-stone-600">Phone:</span>
+                <span className="font-medium">{user.phone}</span>
+              </div>
+            )}
+            {user.organizationId && (
+              <div className="flex justify-between">
+                <span className="text-stone-600">Organization:</span>
+                <span className="font-medium text-xs">{user.organizationId}</span>
+              </div>
+            )}
+            <div className="pt-2 border-t">
+              <div className="flex justify-between items-center">
+                <span className="text-stone-600">Profile:</span>
+                <span className={`text-xs px-2 py-1 rounded ${
+                  user.profileCompleted 
+                    ? "bg-green-100 text-green-700" 
+                    : "bg-amber-100 text-amber-700"
+                }`}>
+                  {user.profileCompleted ? "Complete" : "Incomplete"}
+                </span>
+              </div>
+            </div>
+            {!user.profileCompleted && (
+              <div className="mt-3 pt-3 border-t">
+                <p className="text-xs text-amber-600 mb-2">Required to complete:</p>
+                <ul className="text-xs text-stone-600 space-y-1 ml-4 list-disc">
+                  {!user.name && <li>Name</li>}
+                  {!user.dob && <li>Date of Birth</li>}
+                  {!user.gender && <li>Gender</li>}
+                  {!user.homeAddress && <li>Home Address</li>}
+                  {!user.workAddress && <li>Work Address</li>}
+                </ul>
+                <button
+                  onClick={() => navigate("/complete-profile")}
+                  className="mt-3 w-full px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 text-sm transition-colors"
+                >
+                  Complete Profile
+                </button>
+              </div>
+            )}
+            {user.isDriver && (
+              <div className="flex justify-between items-center">
+                <span className="text-stone-600">Driver Status:</span>
+                <span className={`text-xs px-2 py-1 rounded ${
+                  user.driverStatus === "APPROVED" 
+                    ? "bg-green-100 text-green-700" 
+                    : user.driverStatus === "PENDING"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-gray-100 text-gray-700"
+                }`}>
+                  {user.driverStatus || "N/A"}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Find Rides */}
         <div className="p-6 bg-white border rounded-xl shadow-sm">
           <h3 className="font-semibold text-lg mb-2">🔍 Find Rides</h3>
@@ -193,6 +292,88 @@ const EmployeeDashboard = () => {
             <p className="mt-3 text-sm text-emerald-700">{message}</p>
           )}
         </div>
+      </div>
+
+      {/* My Rides Section */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+          🚕 My Rides as Passenger
+        </h2>
+        
+        {ridesLoading ? (
+          <p className="text-stone-600">Loading your rides...</p>
+        ) : passengerRides.length === 0 ? (
+          <div className="bg-white border rounded-xl shadow-sm p-6 text-center">
+            <p className="text-stone-600">You haven't requested any rides yet.</p>
+            <button
+              onClick={() => navigate("/passenger/search")}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Find Your First Ride
+            </button>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {passengerRides.map((ride) => (
+              <div
+                key={ride._id}
+                className="bg-white border rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    ride.status === "APPROVED"
+                      ? "bg-green-100 text-green-700"
+                      : ride.status === "REJECTED"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-amber-100 text-amber-700"
+                  }`}>
+                    {ride.status}
+                  </span>
+                  <span className="text-xs text-stone-500">
+                    {new Date(ride.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-sm">
+                  <div>
+                    <span className="text-stone-600">From:</span>
+                    <p className="font-medium text-stone-900">
+                      {ride.tripId?.source?.name || "Unknown"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-stone-600">To:</span>
+                    <p className="font-medium text-stone-900">
+                      {ride.tripId?.destination?.name || "Unknown"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-stone-600">Driver:</span>
+                    <p className="font-medium text-stone-900">
+                      {ride.tripId?.driverId?.name || "Unknown Driver"}
+                    </p>
+                  </div>
+                  {ride.tripId?.departureTime && (
+                    <div>
+                      <span className="text-stone-600">Departure:</span>
+                      <p className="font-medium text-stone-900">
+                        {new Date(ride.tripId.departureTime).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                  {ride.tripId?.seatsAvailable !== undefined && (
+                    <div>
+                      <span className="text-stone-600">Seats Available:</span>
+                      <span className="font-medium text-stone-900 ml-2">
+                        {ride.tripId.seatsAvailable}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
