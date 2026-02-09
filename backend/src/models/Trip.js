@@ -47,10 +47,24 @@ const tripSchema = new mongoose.Schema({
     required: [true, 'Source location is required'],
     trim: true
   },
+  sourceLocation: {
+    address: String,
+    coordinates: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], default: [0, 0] } // [longitude, latitude]
+    }
+  },
   destination: {
     type: String,
     required: [true, 'Destination location is required'],
     trim: true
+  },
+  destinationLocation: {
+    address: String,
+    coordinates: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], default: [0, 0] } // [longitude, latitude]
+    }
   },
   scheduledTime: {
     type: Date,
@@ -108,6 +122,8 @@ const tripSchema = new mongoose.Schema({
 
 // Create 2dsphere index on route
 tripSchema.index({ route: '2dsphere' });
+tripSchema.index({ 'sourceLocation.coordinates': '2dsphere' });
+tripSchema.index({ 'destinationLocation.coordinates': '2dsphere' });
 
 // Index for efficient searches
 tripSchema.index({ status: 1, availableSeats: 1 });

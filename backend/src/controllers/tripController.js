@@ -13,7 +13,7 @@ export const createTrip = async (req, res) => {
       });
     }
 
-    const { vehicleType, totalSeats, scheduledTime, source, destination } = req.body;
+    const { vehicleType, totalSeats, scheduledTime, source, destination, sourceLocation, destinationLocation } = req.body;
 
     // Validate required fields
     if (!source || !destination || !scheduledTime || !vehicleType || !totalSeats) {
@@ -53,8 +53,8 @@ export const createTrip = async (req, res) => {
     // Calculate estimated cost (simple formula: base + per km)
     const estimatedCost = 50 + (totalSeats * 10);
 
-    // Create trip
-    const trip = await Trip.create({
+    // Prepare trip data
+    const tripData = {
       driverId: req.user._id,
       vehicleType,
       totalSeats: parseInt(totalSeats),
@@ -64,7 +64,31 @@ export const createTrip = async (req, res) => {
       destination,
       estimatedCost,
       status: 'SCHEDULED'
-    });
+    };
+
+    // Add geolocation data if provided
+    if (sourceLocation && sourceLocation.lat && sourceLocation.lng) {
+      tripData.sourceLocation = {
+        address: sourceLocation.address || source,
+        coordinates: {
+          type: 'Point',
+          coordinates: [parseFloat(sourceLocation.lng), parseFloat(sourceLocation.lat)]
+        }
+      };
+    }
+
+    if (destinationLocation && destinationLocation.lat && destinationLocation.lng) {
+      tripData.destinationLocation = {
+        address: destinationLocation.address || destination,
+        coordinates: {
+          type: 'Point',
+          coordinates: [parseFloat(destinationLocation.lng), parseFloat(destinationLocation.lat)]
+        }
+      };
+    }
+
+    // Create trip
+    const trip = await Trip.create(tripData);
 
     const populatedTrip = await Trip.findById(trip._id).populate('driverId', 'name email');
 
@@ -88,7 +112,7 @@ export const createTrip = async (req, res) => {
 // @access  Private
 export const searchTrips = async (req, res) => {
   try {
-    const { source, destination, vehicleType } = req.query;
+    const { source, destination, vehicleType, sourceLat, sourceLng, destLat, destLng, maxDistance = 5000 } = req.query;
 
     // Validate required parameters
     if (!source || !destination) {
@@ -98,22 +122,127 @@ export const searchTrips = async (req, res) => {
       });
     }
 
-    // Build query - simplified to use only regex for now
-    const query = {
-      status: 'SCHEDULED',
-      availableSeats: { $gt: 0 },
-      source: { $regex: source, $options: 'i' },
-      destination: { $regex: destination, $options: 'i' }
-    };
+    let trips;
 
-    // Add vehicle type filter if provided
-    if (vehicleType) {
-      query.vehicleType = vehicleType.toUpperCase();
+    // If geolocation coordinates are provided, use geospatial query
+    if (sourceLat && sourceLng && destLat && destLng) {
+      const sourceLon = parseFloat(sourceLng);
+      const sourceLa = parseFloat(sourceLat);
+      const destLon = parseFloat(destLng);
+      const destLa = parseFloat(destLat);
+      const maxDist = parseInt(maxDistance);
+
+      // Build base query
+      const baseQuery = {
+        status: 'SCHEDULED',
+        availableSeats: { $gt: 0 },
+        'sourceLocation.coordinates.coordinates': { $exists: true, $ne: [0, 0] },
+        'destinationLocation.coordinates.coordinates': { $exists: true, $ne: [0, 0] }
+      };
+
+      // Add vehicle type filter if provided
+      if (vehicleType) {
+        baseQuery.vehicleType = vehicleType.toUpperCase();
+      }
+
+      // Find trips with source and destination within radius
+      // Using aggregation pipeline for better geospatial matching
+      trips = await Trip.aggregate([
+        {
+          $geoNear: {
+            near: {
+              type: 'Point',
+              coordinates: [sourceLon, sourceLa]
+            },
+            distanceField: 'sourceDistance',
+            maxDistance: maxDist,
+            spherical: true,
+            key: 'sourceLocation.coordinates',
+            query: baseQuery
+          }
+        },
+        {
+          $addFields: {
+            destDistance: {
+              $let: {
+                vars: {
+                  destCoords: '$destinationLocation.coordinates.coordinates'
+                },
+                in: {
+                  $sqrt: {
+                    $add: [
+                      {
+                        $pow: [
+                          { $subtract: [{ $arrayElemAt: ['$$destCoords', 0] }, destLon] },
+                          2
+                        ]
+                      },
+                      {
+                        $pow: [
+                          { $subtract: [{ $arrayElemAt: ['$$destCoords', 1] }, destLa] },
+                          2
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            destDistance: { $lte: maxDist / 111320 } // Approximate conversion to degrees
+          }
+        },
+        {
+          $lookup: {
+            from: 'users',
+            localField: 'driverId',
+            foreignField: '_id',
+            as: 'driverInfo'
+          }
+        },
+        {
+          $unwind: '$driverInfo'
+        },
+        {
+          $addFields: {
+            driverId: {
+              _id: '$driverInfo._id',
+              name: '$driverInfo.name',
+              email: '$driverInfo.email'
+            }
+          }
+        },
+        {
+          $project: {
+            driverInfo: 0
+          }
+        },
+        {
+          $sort: { scheduledTime: 1 }
+        }
+      ]);
+
+    } else {
+      // Fallback to text-based search using regex
+      const query = {
+        status: 'SCHEDULED',
+        availableSeats: { $gt: 0 },
+        source: { $regex: source, $options: 'i' },
+        destination: { $regex: destination, $options: 'i' }
+      };
+
+      // Add vehicle type filter if provided
+      if (vehicleType) {
+        query.vehicleType = vehicleType.toUpperCase();
+      }
+
+      trips = await Trip.find(query)
+        .populate('driverId', 'name email')
+        .sort({ scheduledTime: 1 });
     }
-
-    const trips = await Trip.find(query)
-      .populate('driverId', 'name email')
-      .sort({ scheduledTime: 1 });
 
     res.status(200).json({
       success: true,

@@ -3,6 +3,7 @@ import { tripService } from '../../services/tripService';
 import { rideService } from '../../services/rideService';
 import TripCard from '../../components/TripCard';
 import InputField from '../../components/InputField';
+import LocationAutocomplete from '../../components/LocationAutocomplete';
 
 const SearchTrips = () => {
   const [searchParams, setSearchParams] = useState({
@@ -10,6 +11,9 @@ const SearchTrips = () => {
     destination: '',
     vehicleType: '',
   });
+  
+  const [sourceLocation, setSourceLocation] = useState(null);
+  const [destinationLocation, setDestinationLocation] = useState(null);
   
   const [trips, setTrips] = useState([]);
   const [requestedTripIds, setRequestedTripIds] = useState([]);
@@ -48,7 +52,23 @@ const SearchTrips = () => {
     setHasSearched(true);
 
     try {
-      const data = await tripService.searchTrips(searchParams);
+      // Build search params with location data if available
+      const searchData = {
+        ...searchParams
+      };
+
+      // Add geolocation data if available
+      if (sourceLocation?.lat && sourceLocation?.lng) {
+        searchData.sourceLat = sourceLocation.lat;
+        searchData.sourceLng = sourceLocation.lng;
+      }
+      
+      if (destinationLocation?.lat && destinationLocation?.lng) {
+        searchData.destLat = destinationLocation.lat;
+        searchData.destLng = destinationLocation.lng;
+      }
+
+      const data = await tripService.searchTrips(searchData);
       setTrips(data.trips || []);
       
       if (!data.trips || data.trips.length === 0) {
@@ -86,6 +106,22 @@ const SearchTrips = () => {
     });
   };
 
+  const handleSourceChange = (locationData) => {
+    setSourceLocation(locationData);
+    setSearchParams({
+      ...searchParams,
+      source: locationData.address || locationData
+    });
+  };
+
+  const handleDestinationChange = (locationData) => {
+    setDestinationLocation(locationData);
+    setSearchParams({
+      ...searchParams,
+      destination: locationData.address || locationData
+    });
+  };
+
   const handleVehicleTypeFilter = (type) => {
     setSearchParams({
       ...searchParams,
@@ -105,22 +141,18 @@ const SearchTrips = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <form onSubmit={handleSearch} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField
+              <LocationAutocomplete
                 label="Source"
-                type="text"
-                name="source"
                 value={searchParams.source}
-                onChange={handleChange}
+                onChange={handleSourceChange}
                 placeholder="Enter pickup location"
                 required
               />
 
-              <InputField
+              <LocationAutocomplete
                 label="Destination"
-                type="text"
-                name="destination"
                 value={searchParams.destination}
-                onChange={handleChange}
+                onChange={handleDestinationChange}
                 placeholder="Enter destination"
                 required
               />

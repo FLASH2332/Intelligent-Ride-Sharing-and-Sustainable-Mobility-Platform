@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tripService } from '../../services/tripService';
 import InputField from '../../components/InputField';
+import LocationAutocomplete from '../../components/LocationAutocomplete';
 
 const CreateTrip = () => {
   const navigate = useNavigate();
@@ -16,6 +17,9 @@ const CreateTrip = () => {
     vehicleType: 'CAR',
     totalSeats: 4,
   });
+
+  const [sourceLocation, setSourceLocation] = useState(null);
+  const [destinationLocation, setDestinationLocation] = useState(null);
 
   // Get max date (7 days from now)
   const getMaxDate = () => {
@@ -47,6 +51,22 @@ const CreateTrip = () => {
     }
   };
 
+  const handleSourceChange = (locationData) => {
+    setSourceLocation(locationData);
+    setFormData({
+      ...formData,
+      source: locationData.address || locationData
+    });
+  };
+
+  const handleDestinationChange = (locationData) => {
+    setDestinationLocation(locationData);
+    setFormData({
+      ...formData,
+      destination: locationData.address || locationData
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -75,6 +95,16 @@ const CreateTrip = () => {
         scheduledTime: formData.scheduledTime,
         vehicleType: formData.vehicleType,
         totalSeats: parseInt(formData.totalSeats),
+        sourceLocation: sourceLocation?.lat && sourceLocation?.lng ? {
+          address: sourceLocation.address,
+          lat: sourceLocation.lat,
+          lng: sourceLocation.lng
+        } : null,
+        destinationLocation: destinationLocation?.lat && destinationLocation?.lng ? {
+          address: destinationLocation.address,
+          lat: destinationLocation.lat,
+          lng: destinationLocation.lng
+        } : null
       });
 
       setSuccess('Trip created successfully!');
@@ -87,6 +117,8 @@ const CreateTrip = () => {
         vehicleType: 'CAR',
         totalSeats: 4,
       });
+      setSourceLocation(null);
+      setDestinationLocation(null);
 
       // Redirect to driver dashboard after 2 seconds
       setTimeout(() => {
@@ -121,22 +153,18 @@ const CreateTrip = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <InputField
+            <LocationAutocomplete
               label="Source"
-              type="text"
-              name="source"
               value={formData.source}
-              onChange={handleChange}
+              onChange={handleSourceChange}
               placeholder="Enter pickup location"
               required
             />
 
-            <InputField
+            <LocationAutocomplete
               label="Destination"
-              type="text"
-              name="destination"
               value={formData.destination}
-              onChange={handleChange}
+              onChange={handleDestinationChange}
               placeholder="Enter drop-off location"
               required
             />
