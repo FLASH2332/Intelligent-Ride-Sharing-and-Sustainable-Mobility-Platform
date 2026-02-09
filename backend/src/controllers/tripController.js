@@ -13,48 +13,65 @@ export const createTrip = async (req, res) => {
       });
     }
 
-    const { vehicleType, seatsAvailable, startTime, route } = req.body;
+    const { vehicleType, totalSeats, scheduledTime, source, destination } = req.body;
 
-    // Validate startTime is within 7 days
-    const now = new Date();
-    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const tripStartTime = new Date(startTime);
-
-    if (tripStartTime < now || tripStartTime > sevenDaysFromNow) {
+    // Validate required fields
+    if (!source || !destination || !scheduledTime || !vehicleType || !totalSeats) {
       return res.status(400).json({
         success: false,
-        message: 'Start time must be within the next 7 days'
+        message: 'All fields are required: source, destination, scheduledTime, vehicleType, totalSeats'
+      });
+    }
+
+    // Validate scheduledTime is within 7 days
+    const now = new Date();
+    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const tripScheduledTime = new Date(scheduledTime);
+
+    if (tripScheduledTime < now || tripScheduledTime > sevenDaysFromNow) {
+      return res.status(400).json({
+        success: false,
+        message: 'Scheduled time must be within the next 7 days'
       });
     }
 
     // Validate seats based on vehicle type
-    if (vehicleType === 'CAR' && seatsAvailable > 7) {
+    if (vehicleType === 'CAR' && (totalSeats < 1 || totalSeats > 7)) {
       return res.status(400).json({
         success: false,
-        message: 'CAR can have maximum 7 seats available'
+        message: 'CAR can have between 1 and 7 seats'
       });
     }
 
-    if (vehicleType === 'BIKE' && seatsAvailable !== 1) {
+    if (vehicleType === 'BIKE' && totalSeats !== 1) {
       return res.status(400).json({
         success: false,
-        message: 'BIKE must have exactly 1 seat available'
+        message: 'BIKE must have exactly 1 seat'
       });
     }
+
+    // Calculate estimated cost (simple formula: base + per km)
+    const estimatedCost = 50 + (totalSeats * 10);
 
     // Create trip
     const trip = await Trip.create({
       driverId: req.user._id,
       vehicleType,
-      seatsAvailable,
-      startTime: tripStartTime,
-      route,
-      status: 'PLANNED'
+      totalSeats: parseInt(totalSeats),
+      availableSeats: parseInt(totalSeats),
+      scheduledTime: tripScheduledTime,
+      source,
+      destination,
+      estimatedCost,
+      status: 'SCHEDULED'
     });
+
+    const populatedTrip = await Trip.findById(trip._id).populate('driverId', 'name email');
 
     res.status(201).json({
       success: true,
-      data: trip
+      message: 'Trip created successfully',
+      trip: populatedTrip
     });
 
   } catch (error) {
@@ -66,44 +83,34 @@ export const createTrip = async (req, res) => {
   }
 };
 
-// @desc    Search for trips near a location
+// @desc    Search for trips by source and destination
 // @route   GET /api/trips/search
 // @access  Private
 export const searchTrips = async (req, res) => {
   try {
-    const { lat, lng, vehicleType } = req.query;
+    const { source, destination, vehicleType } = req.query;
 
     // Validate required parameters
-    if (!lat || !lng) {
+    if (!source || !destination) {
       return res.status(400).json({
         success: false,
-        message: 'Latitude and longitude are required'
-      });
-    }
-
-    const latitude = parseFloat(lat);
-    const longitude = parseFloat(lng);
-
-    if (isNaN(latitude) || isNaN(longitude)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid latitude or longitude'
+        message: 'Source and destination are required'
       });
     }
 
     // Build query
     const query = {
-      status: 'PLANNED',
-      seatsAvailable: { $gt: 0 },
-      route: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [longitude, latitude]
-          },
-          $maxDistance: 5000 // 5km radius
+      status: 'SCHEDULED',
+      availableSeats: { $gt: 0 },
+      $or: [
+        {
+          source: { $regex: source, $options: 'i' },
+          destination: { $regex: destination, $options: 'i' }
+        },
+        {
+          $text: { $search: `${source} ${destination}` }
         }
-      }
+      ]
     };
 
     // Add vehicle type filter if provided
@@ -111,12 +118,14 @@ export const searchTrips = async (req, res) => {
       query.vehicleType = vehicleType.toUpperCase();
     }
 
-    const trips = await Trip.find(query).populate('driverId', 'name email');
+    const trips = await Trip.find(query)
+      .populate('driverId', 'name email')
+      .sort({ scheduledTime: 1 });
 
     res.status(200).json({
       success: true,
       count: trips.length,
-      data: trips
+      trips: trips
     });
 
   } catch (error) {
@@ -128,8 +137,32 @@ export const searchTrips = async (req, res) => {
   }
 };
 
+// @desc    Get driver's trips
+// @route   GET /api/trips/driver/trips
+// @access  Private (Driver only)
+export const getDriverTrips = async (req, res) => {
+  try {
+    const trips = await Trip.find({ driverId: req.user._id })
+      .populate('driverId', 'name email')
+      .sort({ scheduledTime: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: trips.length,
+      trips: trips
+    });
+
+  } catch (error) {
+    console.error('Get driver trips error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to get driver trips'
+    });
+  }
+};
+
 // @desc    Start a trip
-// @route   PUT /api/trips/:id/start
+// @route   POST /api/trips/:id/start
 // @access  Private (Driver only)
 export const startTrip = async (req, res) => {
   try {
@@ -150,21 +183,22 @@ export const startTrip = async (req, res) => {
       });
     }
 
-    // Check if trip is in PLANNED status
-    if (trip.status !== 'PLANNED') {
+    // Check if trip is in SCHEDULED status
+    if (trip.status !== 'SCHEDULED') {
       return res.status(400).json({
         success: false,
-        message: `Cannot start trip with status ${trip.status}. Trip must be in PLANNED status`
+        message: `Cannot start trip with status ${trip.status}. Trip must be in SCHEDULED status`
       });
     }
 
-    // Update status to ONGOING
-    trip.status = 'ONGOING';
+    // Update status to IN_PROGRESS
+    trip.status = 'IN_PROGRESS';
     await trip.save();
 
     res.status(200).json({
       success: true,
-      data: trip
+      message: 'Trip started successfully',
+      trip: trip
     });
 
   } catch (error) {
@@ -177,7 +211,7 @@ export const startTrip = async (req, res) => {
 };
 
 // @desc    End a trip
-// @route   PUT /api/trips/:id/end
+// @route   POST /api/trips/:id/end
 // @access  Private (Driver only)
 export const endTrip = async (req, res) => {
   try {
@@ -198,11 +232,11 @@ export const endTrip = async (req, res) => {
       });
     }
 
-    // Check if trip is in ONGOING status
-    if (trip.status !== 'ONGOING') {
+    // Check if trip is in IN_PROGRESS status
+    if (trip.status !== 'IN_PROGRESS') {
       return res.status(400).json({
         success: false,
-        message: `Cannot end trip with status ${trip.status}. Trip must be in ONGOING status`
+        message: `Cannot end trip with status ${trip.status}. Trip must be in IN_PROGRESS status`
       });
     }
 
@@ -212,7 +246,8 @@ export const endTrip = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      data: trip
+      message: 'Trip ended successfully',
+      trip: trip
     });
 
   } catch (error) {

@@ -3,7 +3,8 @@ import {
   createTrip,
   searchTrips,
   startTrip,
-  endTrip
+  endTrip,
+  getDriverTrips
 } from '../controllers/tripController.js';
 import protect from '../middlewares/authMiddleware.js';
 import requireDriver from '../middlewares/driverMiddleware.js';
@@ -15,6 +16,9 @@ router.post('/trips', protect, requireDriver, createTrip);
 
 // Search for trips near a location (authenticated users)
 router.get('/trips/search', protect, searchTrips);
+
+// Get driver's trips (drivers only)
+router.get('/trips/driver/trips', protect, requireDriver, getDriverTrips);
 
 // Start a trip (drivers only)
 router.post('/trips/:id/start', protect, requireDriver, startTrip);

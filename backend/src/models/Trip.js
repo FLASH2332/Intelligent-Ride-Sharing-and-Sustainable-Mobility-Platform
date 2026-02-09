@@ -14,9 +14,9 @@ const tripSchema = new mongoose.Schema({
     },
     required: [true, 'Vehicle type is required']
   },
-  seatsAvailable: {
+  totalSeats: {
     type: Number,
-    required: [true, 'Seats available is required'],
+    required: [true, 'Total seats is required'],
     min: [1, 'At least 1 seat must be available'],
     validate: {
       validator: function(value) {
@@ -29,50 +29,76 @@ const tripSchema = new mongoose.Schema({
       },
       message: function(_props) {
         if (this.vehicleType === 'CAR') {
-          return 'CAR can have maximum 7 seats available';
+          return 'CAR can have maximum 7 seats';
         } else if (this.vehicleType === 'BIKE') {
-          return 'BIKE must have exactly 1 seat available';
+          return 'BIKE must have exactly 1 seat';
         }
         return 'Invalid seats configuration';
       }
     }
   },
-  startTime: {
+  availableSeats: {
+    type: Number,
+    required: [true, 'Available seats is required'],
+    min: [0, 'Available seats cannot be negative']
+  },
+  source: {
+    type: String,
+    required: [true, 'Source location is required'],
+    trim: true
+  },
+  destination: {
+    type: String,
+    required: [true, 'Destination location is required'],
+    trim: true
+  },
+  scheduledTime: {
     type: Date,
-    required: [true, 'Start time is required'],
+    required: [true, 'Scheduled time is required'],
     validate: {
       validator: function(value) {
         const now = new Date();
         const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
         return value >= now && value <= sevenDaysFromNow;
       },
-      message: 'Start time must be within the next 7 days'
+      message: 'Scheduled time must be within the next 7 days'
+    }
+  },
+  estimatedCost: {
+    type: Number,
+    default: 0
+  },
+  status: {
+    type: String,
+    enum: {
+      values: ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+      message: '{VALUE} is not a valid status'
+    },
+    default: 'SCHEDULED'
+  },
+  // Legacy fields for backward compatibility with geo-based queries
+  seatsAvailable: {
+    type: Number,
+    default: function() {
+      return this.availableSeats;
+    }
+  },
+  startTime: {
+    type: Date,
+    default: function() {
+      return this.scheduledTime;
     }
   },
   route: {
     type: {
       type: String,
       enum: ['LineString'],
-      required: true
+      default: 'LineString'
     },
     coordinates: {
       type: [[Number]],
-      required: true,
-      validate: {
-        validator: function(value) {
-          return value && value.length >= 2;
-        },
-        message: 'Route must have at least 2 coordinates (start and end points)'
-      }
+      default: [[0, 0], [0, 0]]
     }
-  },
-  status: {
-    type: String,
-    enum: {
-      values: ['PLANNED', 'ONGOING', 'COMPLETED'],
-      message: '{VALUE} is not a valid status'
-    },
-    default: 'PLANNED'
   },
   createdAt: {
     type: Date,
@@ -82,6 +108,10 @@ const tripSchema = new mongoose.Schema({
 
 // Create 2dsphere index on route
 tripSchema.index({ route: '2dsphere' });
+
+// Index for text-based searches
+tripSchema.index({ source: 'text', destination: 'text' });
+tripSchema.index({ status: 1, availableSeats: 1 });
 
 const Trip = mongoose.model('Trip', tripSchema);
 

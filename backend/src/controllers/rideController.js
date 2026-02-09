@@ -48,14 +48,14 @@ export const requestRide = async (req, res) => {
       });
     }
 
-    if (trip.status !== 'PLANNED') {
+    if (trip.status !== 'SCHEDULED') {
       return res.status(400).json({
         success: false,
         message: 'Trip is not available for booking'
       });
     }
 
-    if (trip.seatsAvailable < 1) {
+    if (trip.availableSeats < 1) {
       return res.status(400).json({
         success: false,
         message: 'No seats available for this trip'
@@ -126,10 +126,10 @@ export const approveRide = async (req, res) => {
     const trip = await Trip.findOneAndUpdate(
       {
         _id: rideRequest.tripId._id,
-        seatsAvailable: { $gt: 0 }
+        availableSeats: { $gt: 0 }
       },
       {
-        $inc: { seatsAvailable: -1 }
+        $inc: { availableSeats: -1 }
       },
       { new: true }
     );
@@ -163,7 +163,7 @@ export const approveRide = async (req, res) => {
       success: true,
       data: rideRequest,
       trip: {
-        seatsAvailable: trip.seatsAvailable
+        availableSeats: trip.availableSeats
       }
     });
 
@@ -239,6 +239,90 @@ export const rejectRide = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || 'Failed to reject ride'
+    });
+  }
+};
+
+// @desc    Get ride requests for a specific trip
+// @route   GET /api/rides/trip/:tripId
+// @access  Private (Drivers only)
+export const getRideRequestsForTrip = async (req, res) => {
+  try {
+    const { tripId } = req.params;
+
+    // Find the trip
+    const trip = await Trip.findById(tripId);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check if user is the driver of this trip
+    if (trip.driverId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the trip driver can view ride requests'
+      });
+    }
+
+    // Get all ride requests for this trip
+    const rideRequests = await RideRequest.find({ tripId })
+      .populate('passengerId', 'name email')
+      .populate('tripId', 'source destination scheduledTime vehicleType')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: rideRequests.length,
+      rides: rideRequests
+    });
+
+  } catch (error) {
+    console.error('Get ride requests error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to get ride requests'
+    });
+  }
+};
+
+// @desc    Get passenger's rides
+// @route   GET /api/rides/passenger/rides
+// @access  Private
+export const getPassengerRides = async (req, res) => {
+  try {
+    const passengerId = req.user._id;
+
+    // Get all ride requests for this passenger
+    const rideRequests = await RideRequest.find({ passengerId })
+      .populate('tripId')
+      .populate('passengerId', 'name email')
+      .sort({ createdAt: -1 });
+
+    // Populate driver information from tripId
+    const ridesWithDriver = await Promise.all(
+      rideRequests.map(async (ride) => {
+        if (ride.tripId) {
+          await ride.tripId.populate('driverId', 'name email');
+        }
+        return ride;
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      count: ridesWithDriver.length,
+      rides: ridesWithDriver
+    });
+
+  } catch (error) {
+    console.error('Get passenger rides error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to get passenger rides'
     });
   }
 };
