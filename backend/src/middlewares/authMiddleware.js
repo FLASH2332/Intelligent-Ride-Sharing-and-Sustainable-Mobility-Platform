@@ -20,7 +20,7 @@ const protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Get user from database and attach to request
-    const user = await User.findById(decoded.id).select("-password");
+    const user = await User.findById(decoded.userId).select("-passwordHash");
     
     if (!user) {
       return res.status(401).json({ 
