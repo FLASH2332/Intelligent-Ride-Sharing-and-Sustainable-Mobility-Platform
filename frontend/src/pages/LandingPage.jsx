@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { Leaf, Users, TrendingUp, Shield, Car, Sprout } from 'lucide-react';
-import Header from '../components/Header';
 import FeatureCard from '../components/FeatureCard';
 import StatCard from '../components/StatCard';
 
@@ -9,7 +8,6 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <Header />
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-6">
