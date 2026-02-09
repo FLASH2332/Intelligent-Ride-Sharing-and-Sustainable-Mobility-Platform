@@ -109,9 +109,9 @@ const tripSchema = new mongoose.Schema({
 // Create 2dsphere index on route
 tripSchema.index({ route: '2dsphere' });
 
-// Index for text-based searches
-tripSchema.index({ source: 'text', destination: 'text' });
+// Index for efficient searches
 tripSchema.index({ status: 1, availableSeats: 1 });
+tripSchema.index({ source: 1, destination: 1 });
 
 const Trip = mongoose.model('Trip', tripSchema);
 

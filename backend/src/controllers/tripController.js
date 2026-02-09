@@ -98,19 +98,12 @@ export const searchTrips = async (req, res) => {
       });
     }
 
-    // Build query
+    // Build query - simplified to use only regex for now
     const query = {
       status: 'SCHEDULED',
       availableSeats: { $gt: 0 },
-      $or: [
-        {
-          source: { $regex: source, $options: 'i' },
-          destination: { $regex: destination, $options: 'i' }
-        },
-        {
-          $text: { $search: `${source} ${destination}` }
-        }
-      ]
+      source: { $regex: source, $options: 'i' },
+      destination: { $regex: destination, $options: 'i' }
     };
 
     // Add vehicle type filter if provided

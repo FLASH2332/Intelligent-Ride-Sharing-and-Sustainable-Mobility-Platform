@@ -9,7 +9,9 @@ const Header = () => {
 
   const handleLogout = () => {
     authService.logout();
-    navigate("/login");
+    navigate("/", { replace: true });
+    // Force page reload to clear all state
+    window.location.reload();
   };
 
   const hideHeaderRoutes = ["/login", "/signup"];
