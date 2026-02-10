@@ -4,6 +4,7 @@ import { rideService } from '../../services/rideService';
 import TripCard from '../../components/TripCard';
 import InputField from '../../components/InputField';
 import LocationAutocomplete from '../../components/LocationAutocomplete';
+import MapView from '../../components/MapView';
 
 const SearchTrips = () => {
   const [searchParams, setSearchParams] = useState({
@@ -198,6 +199,38 @@ const SearchTrips = () => {
             </button>
           </form>
         </div>
+
+        {/* Map View */}
+        {((sourceLocation?.lat && sourceLocation?.lng) || (destinationLocation?.lat && destinationLocation?.lng)) && (
+          <div className="mb-8">
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <h2 className="text-lg font-semibold text-gray-900 mb-3">Route Preview</h2>
+              <MapView
+                sourceLocation={sourceLocation}
+                destinationLocation={destinationLocation}
+                height="400px"
+              />
+              {sourceLocation && destinationLocation && (
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-start space-x-2">
+                    <div className="w-3 h-3 bg-green-500 rounded-full mt-1 flex-shrink-0"></div>
+                    <div>
+                      <div className="font-medium text-gray-900">Pickup</div>
+                      <div className="text-gray-600">{sourceLocation.address}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full mt-1 flex-shrink-0"></div>
+                    <div>
+                      <div className="font-medium text-gray-900">Drop-off</div>
+                      <div className="text-gray-600">{destinationLocation.address}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Messages */}
         {error && (

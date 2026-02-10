@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { tripService } from '../../services/tripService';
 import InputField from '../../components/InputField';
 import LocationAutocomplete from '../../components/LocationAutocomplete';
+import MapView from '../../components/MapView';
 
 const CreateTrip = () => {
   const navigate = useNavigate();
@@ -168,6 +169,36 @@ const CreateTrip = () => {
               placeholder="Enter drop-off location"
               required
             />
+
+            {/* Map Preview */}
+            {((sourceLocation?.lat && sourceLocation?.lng) || (destinationLocation?.lat && destinationLocation?.lng)) && (
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Route Preview</h3>
+                <MapView
+                  sourceLocation={sourceLocation}
+                  destinationLocation={destinationLocation}
+                  height="350px"
+                />
+                {sourceLocation && destinationLocation && (
+                  <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
+                    <div className="flex items-start space-x-2">
+                      <div className="w-3 h-3 bg-green-500 rounded-full mt-1 flex-shrink-0"></div>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">Pickup</div>
+                        <div className="text-gray-600 text-xs">{sourceLocation.address}</div>
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <div className="w-3 h-3 bg-red-500 rounded-full mt-1 flex-shrink-0"></div>
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">Drop-off</div>
+                        <div className="text-gray-600 text-xs">{destinationLocation.address}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
