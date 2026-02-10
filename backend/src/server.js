@@ -6,6 +6,7 @@ dotenv.config();
 import app from "./app.js";
 import connectDB from "./config/db.js";
 import setupRideSocket from "./sockets/rideSocket.js";
+import setupTrackingSocket from "./sockets/trackingSocket.js";
 import { setIO } from "./config/socket.js";
 
 connectDB();
@@ -28,6 +29,7 @@ setIO(io);
 
 // Setup socket handlers
 setupRideSocket(io);
+setupTrackingSocket(io);
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

@@ -335,3 +335,171 @@ export const getPassengerRides = async (req, res) => {
     });
   }
 };
+
+// @desc    Mark passenger as picked up
+// @route   POST /api/rides/:id/pickup
+// @access  Private (Driver only)
+export const markAsPickedUp = async (req, res) => {
+  try {
+    const rideRequestId = req.params.id;
+
+    // Find the ride request
+    const rideRequest = await RideRequest.findById(rideRequestId)
+      .populate('passengerId', 'name email')
+      .populate('tripId');
+
+    if (!rideRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ride request not found'
+      });
+    }
+
+    // Check if the user is the driver of this trip
+    if (rideRequest.tripId.driverId.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the trip driver can mark passengers as picked up'
+      });
+    }
+
+    // Check if request is approved
+    if (rideRequest.status !== 'APPROVED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only approved passengers can be picked up'
+      });
+    }
+
+    // Check if already picked up
+    if (rideRequest.pickupStatus === 'PICKED_UP') {
+      return res.status(400).json({
+        success: false,
+        message: 'Passenger already marked as picked up'
+      });
+    }
+
+    // Update pickup status
+    rideRequest.pickupStatus = 'PICKED_UP';
+    rideRequest.pickedUpAt = new Date();
+    await rideRequest.save();
+
+    // Emit Socket.io event to passenger
+    try {
+      const io = getIO();
+      io.to(`user-${rideRequest.passengerId._id}`).emit('pickup-status-update', {
+        rideId: rideRequest._id,
+        pickupStatus: 'PICKED_UP',
+        message: 'You have been picked up',
+        timestamp: new Date()
+      });
+      
+      // Also emit to trip room
+      io.to(`trip:${rideRequest.tripId._id}`).emit('passengerPickup', {
+        rideId: rideRequest._id,
+        passengerId: rideRequest.passengerId._id,
+        passengerName: rideRequest.passengerId.name,
+        pickupStatus: 'PICKED_UP'
+      });
+    } catch (socketError) {
+      console.error('Socket.io emit error:', socketError);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: rideRequest,
+      message: 'Passenger marked as picked up'
+    });
+
+  } catch (error) {
+    console.error('Mark as picked up error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to mark passenger as picked up'
+    });
+  }
+};
+
+// @desc    Mark passenger as dropped off
+// @route   POST /api/rides/:id/dropoff
+// @access  Private (Driver only)
+export const markAsDroppedOff = async (req, res) => {
+  try {
+    const rideRequestId = req.params.id;
+
+    // Find the ride request
+    const rideRequest = await RideRequest.findById(rideRequestId)
+      .populate('passengerId', 'name email')
+      .populate('tripId');
+
+    if (!rideRequest) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ride request not found'
+      });
+    }
+
+    // Check if the user is the driver of this trip
+    if (rideRequest.tripId.driverId.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the trip driver can mark passengers as dropped off'
+      });
+    }
+
+    // Check if request is approved
+    if (rideRequest.status !== 'APPROVED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only approved passengers can be dropped off'
+      });
+    }
+
+    // Check if picked up
+    if (rideRequest.pickupStatus !== 'PICKED_UP') {
+      return res.status(400).json({
+        success: false,
+        message: 'Passenger must be picked up before being dropped off'
+      });
+    }
+
+    // Update pickup status
+    rideRequest.pickupStatus = 'DROPPED_OFF';
+    rideRequest.droppedOffAt = new Date();
+    await rideRequest.save();
+
+    // Emit Socket.io event to passenger
+    try {
+      const io = getIO();
+      io.to(`user-${rideRequest.passengerId._id}`).emit('pickup-status-update', {
+        rideId: rideRequest._id,
+        pickupStatus: 'DROPPED_OFF',
+        message: 'You have been dropped off',
+        timestamp: new Date()
+      });
+      
+      // Also emit to trip room
+      io.to(`trip:${rideRequest.tripId._id}`).emit('passengerDropoff', {
+        rideId: rideRequest._id,
+        passengerId: rideRequest.passengerId._id,
+        passengerName: rideRequest.passengerId.name,
+        pickupStatus: 'DROPPED_OFF'
+      });
+    } catch (socketError) {
+      console.error('Socket.io emit error:', socketError);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: rideRequest,
+      message: 'Passenger marked as dropped off'
+    });
+
+  } catch (error) {
+    console.error('Mark as dropped off error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to mark passenger as dropped off'
+    });
+  }
+};

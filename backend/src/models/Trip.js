@@ -85,10 +85,27 @@ const tripSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: {
-      values: ['SCHEDULED', 'IN_PROGRESS', 'COMPLETED'],
+      values: ['SCHEDULED', 'STARTED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'],
       message: '{VALUE} is not a valid status'
     },
     default: 'SCHEDULED'
+  },
+  currentLocation: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point'
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      default: [0, 0]
+    }
+  },
+  actualStartTime: {
+    type: Date
+  },
+  actualEndTime: {
+    type: Date
   },
   // Legacy fields for backward compatibility with geo-based queries
   seatsAvailable: {
@@ -126,12 +143,24 @@ const tripSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   }
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual for rides
+tripSchema.virtual('rides', {
+  ref: 'RideRequest',
+  localField: '_id',
+  foreignField: 'tripId'
 });
 
 // Create 2dsphere index on route
 tripSchema.index({ route: '2dsphere' });
 tripSchema.index({ 'sourceLocation.coordinates': '2dsphere' });
 tripSchema.index({ 'destinationLocation.coordinates': '2dsphere' });
+tripSchema.index({ currentLocation: '2dsphere' });
 
 // Index for efficient searches
 tripSchema.index({ status: 1, availableSeats: 1 });

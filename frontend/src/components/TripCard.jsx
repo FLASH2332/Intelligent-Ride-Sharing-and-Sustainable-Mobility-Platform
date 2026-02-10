@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import PropTypes from 'prop-types';
 
-const TripCard = ({ trip, onRequestRide, showRequestButton = false, requestedTripIds = [] }) => {
+const TripCard = ({ trip, onRequestRide, showRequestButton = false, showManageButton = false, requestedTripIds = [] }) => {
+  const navigate = useNavigate();
   const [isRequesting, setIsRequesting] = useState(false);
   const isRequested = requestedTripIds.includes(trip._id);
 
@@ -125,6 +127,15 @@ const TripCard = ({ trip, onRequestRide, showRequestButton = false, requestedTri
             : 'Request Ride'}
         </button>
       )}
+
+      {showManageButton && (
+        <button
+          onClick={() => navigate(`/driver/trip/${trip._id}`)}
+          className="w-full py-2 px-4 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition-colors"
+        >
+          {trip.status === 'STARTED' ? '🚗 Track Trip' : '📋 Manage Trip'}
+        </button>
+      )}
     </div>
   );
 };
@@ -136,6 +147,7 @@ TripCard.propTypes = {
     destination: PropTypes.string.isRequired,
     scheduledTime: PropTypes.string.isRequired,
     vehicleType: PropTypes.string.isRequired,
+  showManageButton: PropTypes.bool,
     availableSeats: PropTypes.number.isRequired,
     status: PropTypes.string.isRequired,
     estimatedCost: PropTypes.number,

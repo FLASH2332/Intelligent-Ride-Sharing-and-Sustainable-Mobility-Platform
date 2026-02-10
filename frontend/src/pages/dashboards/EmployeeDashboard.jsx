@@ -370,6 +370,18 @@ const EmployeeDashboard = () => {
                     </div>
                   )}
                 </div>
+
+                {/* Track Trip Button for approved and active rides */}
+                {ride.status === 'APPROVED' && ride.tripId?.status && ['STARTED', 'SCHEDULED'].includes(ride.tripId.status) && (
+                  <div className="mt-3">
+                    <button
+                      onClick={() => navigate(`/passenger/ride/${ride._id}`)}
+                      className="w-full px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors"
+                    >
+                      {ride.tripId.status === 'STARTED' ? '🚗 Track Live' : '📍 View Details'}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

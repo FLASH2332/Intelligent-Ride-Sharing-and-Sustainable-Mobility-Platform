@@ -42,7 +42,21 @@ export const tripService = {
     });
   },
 
-  // End trip
+  // Complete trip
+  async completeTrip(tripId) {
+    return await apiRequest(`/trips/${tripId}/complete`, {
+      method: 'POST',
+    });
+  },
+
+  // Cancel trip
+  async cancelTrip(tripId) {
+    return await apiRequest(`/trips/${tripId}/cancel`, {
+      method: 'POST',
+    });
+  },
+
+  // End trip (legacy)
   async endTrip(tripId) {
     return await apiRequest(`/trips/${tripId}/end`, {
       method: 'POST',

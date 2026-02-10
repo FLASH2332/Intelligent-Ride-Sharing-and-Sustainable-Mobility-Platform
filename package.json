@@ -13,5 +13,8 @@
   "lint-staged": {
     "frontend/**/*.{js,jsx}": "npm --prefix frontend run lint",
     "backend/**/*.js": "npm --prefix backend run lint"
+  },
+  "dependencies": {
+    "socket.io-client": "^4.8.3"
   }
 }

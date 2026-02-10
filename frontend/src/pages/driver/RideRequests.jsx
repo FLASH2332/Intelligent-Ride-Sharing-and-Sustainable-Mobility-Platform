@@ -220,28 +220,15 @@ const RideRequests = () => {
 
                       {/* Trip Control Buttons */}
                       <div className="mt-3 space-y-2">
-                        {canStartTrip(trip) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleStartTrip(trip._id);
-                            }}
-                            className="w-full py-2 px-3 bg-green-600 text-white text-sm rounded-lg font-medium hover:bg-green-700 transition-colors"
-                          >
-                            Start Trip
-                          </button>
-                        )}
-                        {canEndTrip(trip) && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEndTrip(trip._id);
-                            }}
-                            className="w-full py-2 px-3 bg-red-600 text-white text-sm rounded-lg font-medium hover:bg-red-700 transition-colors"
-                          >
-                            End Trip
-                          </button>
-                        )}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/driver/trip/${trip._id}`);
+                          }}
+                          className="w-full py-2 px-3 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                        >
+                          {trip.status === 'STARTED' ? '🚗 Track Trip' : '📋 Manage Trip'}
+                        </button>
                       </div>
                     </div>
                   ))}

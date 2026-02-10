@@ -305,55 +305,6 @@ export const getDriverTrips = async (req, res) => {
   }
 };
 
-// @desc    Start a trip
-// @route   POST /api/trips/:id/start
-// @access  Private (Driver only)
-export const startTrip = async (req, res) => {
-  try {
-    const trip = await Trip.findById(req.params.id);
-
-    if (!trip) {
-      return res.status(404).json({
-        success: false,
-        message: 'Trip not found'
-      });
-    }
-
-    // Check if user is the driver of this trip
-    if (trip.driverId.toString() !== req.user.userId.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: 'Only the trip driver can start this trip'
-      });
-    }
-
-    // Check if trip is in SCHEDULED status
-    if (trip.status !== 'SCHEDULED') {
-      return res.status(400).json({
-        success: false,
-        message: `Cannot start trip with status ${trip.status}. Trip must be in SCHEDULED status`
-      });
-    }
-
-    // Update status to IN_PROGRESS
-    trip.status = 'IN_PROGRESS';
-    await trip.save();
-
-    res.status(200).json({
-      success: true,
-      message: 'Trip started successfully',
-      trip: trip
-    });
-
-  } catch (error) {
-    console.error('Start trip error:', error);
-    res.status(400).json({
-      success: false,
-      message: error.message || 'Failed to start trip'
-    });
-  }
-};
-
 // @desc    End a trip
 // @route   POST /api/trips/:id/end
 // @access  Private (Driver only)
@@ -386,6 +337,7 @@ export const endTrip = async (req, res) => {
 
     // Update status to COMPLETED
     trip.status = 'COMPLETED';
+    trip.actualEndTime = new Date();
     await trip.save();
 
     res.status(200).json({
@@ -399,6 +351,239 @@ export const endTrip = async (req, res) => {
     res.status(400).json({
       success: false,
       message: error.message || 'Failed to end trip'
+    });
+  }
+};
+
+// @desc    Update driver's current location during trip
+// @route   POST /api/trips/:id/location
+// @access  Private (Driver only)
+export const updateDriverLocation = async (req, res) => {
+  try {
+    const { lat, lng } = req.body;
+
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        message: 'Latitude and longitude are required'
+      });
+    }
+
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Check if user is the driver of this trip
+    if (trip.driverId.toString() !== req.user.userId.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the trip driver can update location'
+      });
+    }
+
+    // Update current location
+    trip.currentLocation = {
+      type: 'Point',
+      coordinates: [parseFloat(lng), parseFloat(lat)]
+    };
+    
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Location updated successfully',
+      location: trip.currentLocation
+    });
+
+  } catch (error) {
+    console.error('Update location error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to update location'
+    });
+  }
+};
+
+// @desc    Get trip details by ID
+// @route   GET /api/trips/:id
+// @access  Private
+export const getTripById = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id)
+      .populate('driverId', 'name email phone')
+      .populate({
+        path: 'rides',
+        populate: {
+          path: 'passengerId',
+          select: 'name email phone'
+        }
+      });
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      trip
+    });
+
+  } catch (error) {
+    console.error('Get trip error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to get trip'
+    });
+  }
+};
+
+// @desc    Start a trip
+// @route   POST /api/trips/:id/start
+// @access  Private (Driver only)
+export const startTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Verify the user is the driver
+    if (trip.driverId.toString() !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the driver can start this trip'
+      });
+    }
+
+    if (trip.status !== 'SCHEDULED') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot start trip with status ${trip.status}`
+      });
+    }
+
+    trip.status = 'STARTED';
+    trip.actualStartTime = new Date();
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Trip started successfully',
+      trip
+    });
+
+  } catch (error) {
+    console.error('Start trip error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to start trip'
+    });
+  }
+};
+
+// @desc    Complete a trip
+// @route   POST /api/trips/:id/complete
+// @access  Private (Driver only)
+export const completeTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Verify the user is the driver
+    if (trip.driverId.toString() !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the driver can complete this trip'
+      });
+    }
+
+    if (trip.status === 'COMPLETED') {
+      return res.status(400).json({
+        success: false,
+        message: 'Trip is already completed'
+      });
+    }
+
+    trip.status = 'COMPLETED';
+    trip.actualEndTime = new Date();
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Trip completed successfully',
+      trip
+    });
+
+  } catch (error) {
+    console.error('Complete trip error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to complete trip'
+    });
+  }
+};
+
+// @desc    Cancel a trip
+// @route   POST /api/trips/:id/cancel
+// @access  Private (Driver only)
+export const cancelTrip = async (req, res) => {
+  try {
+    const trip = await Trip.findById(req.params.id);
+
+    if (!trip) {
+      return res.status(404).json({
+        success: false,
+        message: 'Trip not found'
+      });
+    }
+
+    // Verify the user is the driver
+    if (trip.driverId.toString() !== req.user.userId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Only the driver can cancel this trip'
+      });
+    }
+
+    if (trip.status === 'COMPLETED' || trip.status === 'CANCELLED') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot cancel trip with status ${trip.status}`
+      });
+    }
+
+    trip.status = 'CANCELLED';
+    await trip.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Trip cancelled successfully',
+      trip
+    });
+
+  } catch (error) {
+    console.error('Cancel trip error:', error);
+    res.status(400).json({
+      success: false,
+      message: error.message || 'Failed to cancel trip'
     });
   }
 };

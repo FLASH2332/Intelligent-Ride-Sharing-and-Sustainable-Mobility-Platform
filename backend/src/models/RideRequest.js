@@ -19,6 +19,20 @@ const rideRequestSchema = new mongoose.Schema({
     },
     default: 'PENDING'
   },
+  pickupStatus: {
+    type: String,
+    enum: {
+      values: ['WAITING', 'PICKED_UP', 'DROPPED_OFF'],
+      message: '{VALUE} is not a valid pickup status'
+    },
+    default: 'WAITING'
+  },
+  pickedUpAt: {
+    type: Date
+  },
+  droppedOffAt: {
+    type: Date
+  },
   createdAt: {
     type: Date,
     default: Date.now

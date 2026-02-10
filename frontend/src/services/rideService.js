@@ -54,5 +54,19 @@ export const rideService = {
       method: 'GET',
     });
   },
+
+  // Mark passenger as picked up
+  async markAsPickedUp(rideId) {
+    return await apiRequest(`/rides/${rideId}/pickup`, {
+      method: 'POST',
+    });
+  },
+
+  // Mark passenger as dropped off
+  async markAsDroppedOff(rideId) {
+    return await apiRequest(`/rides/${rideId}/dropoff`, {
+      method: 'POST',
+    });
+  },
 };
 

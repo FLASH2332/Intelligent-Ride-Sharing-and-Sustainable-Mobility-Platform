@@ -18,9 +18,11 @@ import DriverUpload from "./pages/DriverUpload";
 // Epic-2 Driver Pages
 import CreateTrip from './pages/driver/CreateTrip';
 import RideRequests from './pages/driver/RideRequests';
+import ActiveTrip from './pages/driver/ActiveTrip';
 
 // Epic-2 Passenger Pages
 import SearchTrips from './pages/passenger/SearchTrips';
+import PassengerTripTracking from './pages/passenger/PassengerTripTracking';
 
 function App() {
   return (
@@ -90,6 +92,14 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="/driver/trip/:tripId" 
+            element={
+              <ProtectedRoute>
+                <ActiveTrip />
+              </ProtectedRoute>
+            } 
+          />
           
           {/* Epic-2 Passenger Routes */}
           <Route 
@@ -97,6 +107,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SearchTrips />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/passenger/ride/:rideId" 
+            element={
+              <ProtectedRoute>
+                <PassengerTripTracking />
               </ProtectedRoute>
             } 
           />
