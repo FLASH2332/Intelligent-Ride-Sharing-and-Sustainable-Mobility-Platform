@@ -42,26 +42,6 @@ const ActiveTrip = () => {
     fetchTripDetails();
   }, [tripId]);
 
-  // Auto-refresh trip details every 5 seconds for active trips
-  useEffect(() => {
-    if (!trip || trip.status === 'COMPLETED' || trip.status === 'CANCELLED') {
-      return; // Don't auto-refresh completed or cancelled trips
-    }
-
-    const intervalId = setInterval(() => {
-      // Silently refresh trip details in background
-      tripService.getTripById(tripId)
-        .then(data => {
-          setTrip(data.trip);
-        })
-        .catch(err => {
-          console.error('Auto-refresh failed:', err);
-        });
-    }, 5000); // Refresh every 5 seconds
-
-    return () => clearInterval(intervalId);
-  }, [tripId, trip?.status]);
-
   const fetchTripDetails = async () => {
     try {
       setLoading(true);

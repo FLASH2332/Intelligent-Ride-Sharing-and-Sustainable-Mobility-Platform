@@ -5,6 +5,7 @@ import TripCard from '../../components/TripCard';
 import InputField from '../../components/InputField';
 import LocationAutocomplete from '../../components/LocationAutocomplete';
 import MapView from '../../components/MapView';
+import { io } from 'socket.io-client';
 
 const SearchTrips = () => {
   const [searchParams, setSearchParams] = useState({
@@ -28,35 +29,56 @@ const SearchTrips = () => {
     fetchPassengerRides();
   }, []);
 
-  // Auto-refresh search results every 5 seconds if search has been performed
+  // Setup socket for real-time trip updates
   useEffect(() => {
-    if (!hasSearched || loading) return;
+    if (!hasSearched) return;
 
-    const intervalId = setInterval(() => {
-      // Silently refresh trips in the background
-      const searchData = { ...searchParams };
-      
-      if (sourceLocation?.lat && sourceLocation?.lng) {
-        searchData.sourceLat = sourceLocation.lat;
-        searchData.sourceLng = sourceLocation.lng;
+    const token = localStorage.getItem('authToken');
+    const socket = io('http://localhost:5000', {
+      auth: { token }
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to socket for trip updates');
+    });
+
+    // Listen for new trips being created
+    socket.on('new-trip-created', (data) => {
+      console.log('New trip created:', data);
+      // Refresh search results if we have search params
+      if (searchParams.source && searchParams.destination) {
+        const searchData = { ...searchParams };
+        if (sourceLocation?.lat && sourceLocation?.lng) {
+          searchData.sourceLat = sourceLocation.lat;
+          searchData.sourceLng = sourceLocation.lng;
+        }
+        if (destinationLocation?.lat && destinationLocation?.lng) {
+          searchData.destLat = destinationLocation.lat;
+          searchData.destLng = destinationLocation.lng;
+        }
+        tripService.searchTrips(searchData)
+          .then(data => setTrips(data.trips || []))
+          .catch(err => console.error('Failed to refresh trips:', err));
       }
-      
-      if (destinationLocation?.lat && destinationLocation?.lng) {
-        searchData.destLat = destinationLocation.lat;
-        searchData.destLng = destinationLocation.lng;
-      }
+    });
 
-      tripService.searchTrips(searchData)
-        .then(data => {
-          setTrips(data.trips || []);
-        })
-        .catch(err => {
-          console.error('Auto-refresh failed:', err);
-        });
-    }, 5000); // Refresh every 5 seconds
+    // Listen for trip seats updates
+    socket.on('trip-seats-updated', (data) => {
+      console.log('Trip seats updated:', data);
+      // Update the specific trip in the list
+      setTrips(prevTrips => 
+        prevTrips.map(trip => 
+          trip._id === data.tripId 
+            ? { ...trip, availableSeats: data.availableSeats }
+            : trip
+        )
+      );
+    });
 
-    return () => clearInterval(intervalId);
-  }, [hasSearched, loading, searchParams, sourceLocation, destinationLocation]);
+    return () => {
+      socket.disconnect();
+    };
+  }, [hasSearched, searchParams, sourceLocation, destinationLocation]);
 
   const fetchPassengerRides = async () => {
     try {
@@ -122,18 +144,8 @@ const SearchTrips = () => {
       setSuccessMessage('Ride requested successfully! The driver will review your request.');
       setRequestedTripIds([...requestedTripIds, tripId]);
       
-      // Refresh trips to show updated seat availability
-      const searchData = { ...searchParams };
-      if (sourceLocation?.lat && sourceLocation?.lng) {
-        searchData.sourceLat = sourceLocation.lat;
-        searchData.sourceLng = sourceLocation.lng;
-      }
-      if (destinationLocation?.lat && destinationLocation?.lng) {
-        searchData.destLat = destinationLocation.lat;
-        searchData.destLng = destinationLocation.lng;
-      }
-      const data = await tripService.searchTrips(searchData);
-      setTrips(data.trips || []);
+      // Refresh passenger rides list
+      fetchPassengerRides();
       
       // Clear success message after 5 seconds
       setTimeout(() => setSuccessMessage(''), 5000);

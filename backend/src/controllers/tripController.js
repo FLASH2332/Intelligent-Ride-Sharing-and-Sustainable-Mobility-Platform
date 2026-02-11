@@ -1,4 +1,5 @@
 import Trip from '../models/Trip.js';
+import { getIO } from '../config/socket.js';
 
 // @desc    Create a new trip
 // @route   POST /api/trips
@@ -113,6 +114,17 @@ export const createTrip = async (req, res) => {
     const trip = await Trip.create(tripData);
 
     const populatedTrip = await Trip.findById(trip._id).populate('driverId', 'name email');
+
+    // Emit socket event for new trip creation
+    try {
+      const io = getIO();
+      io.emit('new-trip-created', {
+        trip: populatedTrip,
+        timestamp: new Date()
+      });
+    } catch (socketError) {
+      console.error('Socket.io emit error:', socketError);
+    }
 
     res.status(201).json({
       success: true,

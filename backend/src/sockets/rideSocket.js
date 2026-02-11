@@ -1,9 +1,31 @@
 // Socket.io handlers for ride sharing real-time features
 import Trip from '../models/Trip.js';
+import jwt from 'jsonwebtoken';
 
 export const setupRideSocket = (io) => {
+  // Socket authentication middleware
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    
+    if (!token) {
+      return next(new Error('Authentication error'));
+    }
+
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      socket.userId = decoded.userId;
+      socket.userRole = decoded.role;
+      next();
+    } catch (err) {
+      next(new Error('Invalid token'));
+    }
+  });
+
   io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    console.log('User connected:', socket.id, 'User ID:', socket.userId);
+
+    // Auto-join user to their personal room for notifications
+    socket.join(`user-${socket.userId}`);
 
     // Join a trip room for tracking
     socket.on('joinTrip', (tripId) => {

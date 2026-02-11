@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { rideService } from "../../services/rideService";
+import { io } from 'socket.io-client';
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
@@ -33,26 +34,6 @@ const EmployeeDashboard = () => {
     };
 
     fetchUser();
-
-    // Auto-refresh user data every 10 seconds (slower since it changes less frequently)
-    const intervalId = setInterval(async () => {
-      try {
-        const res = await fetch("http://localhost:5000/api/users/me", {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-          },
-        });
-
-        const data = await res.json();
-        if (res.ok) {
-          setUser(data.user);
-        }
-      } catch (err) {
-        console.error('User auto-refresh failed:', err);
-      }
-    }, 10000);
-
-    return () => clearInterval(intervalId);
   }, []);
 
   // 🔹 Fetch passenger rides
@@ -71,19 +52,42 @@ const EmployeeDashboard = () => {
 
     if (user) {
       fetchPassengerRides();
-
-      // Auto-refresh passenger rides every 5 seconds
-      const intervalId = setInterval(async () => {
-        try {
-          const data = await rideService.getPassengerRides();
-          setPassengerRides(data.rides || []);
-        } catch (err) {
-          console.error('Auto-refresh failed:', err);
-        }
-      }, 5000);
-
-      return () => clearInterval(intervalId);
     }
+  }, [user]);
+
+  // Setup socket for real-time ride status notifications
+  useEffect(() => {
+    if (!user) return;
+
+    const token = localStorage.getItem('authToken');
+    const socket = io('http://localhost:5000', {
+      auth: { token }
+    });
+
+    socket.on('connect', () => {
+      console.log('Connected to socket for ride notifications');
+    });
+
+    // Listen for ride approval/rejection
+    socket.on('ride-approved-notification', (data) => {
+      console.log('Ride approved:', data);
+      // Refresh passenger rides
+      rideService.getPassengerRides()
+        .then(result => setPassengerRides(result.rides || []))
+        .catch(err => console.error('Failed to refresh rides:', err));
+    });
+
+    socket.on('ride-rejected-notification', (data) => {
+      console.log('Ride rejected:', data);
+      // Refresh passenger rides
+      rideService.getPassengerRides()
+        .then(result => setPassengerRides(result.rides || []))
+        .catch(err => console.error('Failed to refresh rides:', err));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [user]);
 
   // 🔹 Request driver access

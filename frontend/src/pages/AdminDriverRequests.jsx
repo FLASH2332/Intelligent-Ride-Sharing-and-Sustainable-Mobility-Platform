@@ -5,22 +5,13 @@ const AdminDriverRequests = () => {
   const [reasons, setReasons] = useState({}); // 🔹 per-driver reason
 
   useEffect(() => {
-    const fetchDriverRequests = () => {
-      fetch("http://localhost:5000/org-admin/driver-requests", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-        },
-      })
-        .then((res) => res.json())
-        .then((data) => setDrivers(data.drivers || []));
-    };
-
-    fetchDriverRequests();
-
-    // Auto-refresh every 5 seconds
-    const intervalId = setInterval(fetchDriverRequests, 5000);
-
-    return () => clearInterval(intervalId);
+    fetch("http://localhost:5000/org-admin/driver-requests", {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((data) => setDrivers(data.drivers || []));
   }, []);
 
   const review = async (id, action) => {

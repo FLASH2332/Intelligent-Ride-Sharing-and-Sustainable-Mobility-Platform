@@ -176,8 +176,12 @@ docs/diagrams/sequence.png
 
 | Feature                 | Screenshot                                 |
 | ----------------------- | ------------------------------------------ |
+| Landing Page            | `docs/screenshots/landingPage.png`         |
 | Login Page              | `docs/screenshots/login.png`               |
+| Signup Page             | `docs/screenshots/signup.png`              |
 | Employee Dashboard      | `docs/screenshots/employee-dashboard.png`  |
+| Driver Dashboard        | `docs/screenshots/driver-dashboard.png`    |
+| Org-admin Dashboard     | `docs/screenshots/admin-dashboard.png`     |
 | Driver Upload           | `docs/screenshots/upload-documents.png`    |
 | Org Admin Driver Review | `docs/screenshots/admin-driver-review.png` |
 | Trip Creation           | `docs/screenshots/create-trip.png`         |

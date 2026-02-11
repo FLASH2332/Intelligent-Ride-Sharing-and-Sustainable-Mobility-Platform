@@ -82,6 +82,18 @@ export const requestRide = async (req, res) => {
       .populate('passengerId', 'name email')
       .populate('tripId');
 
+    // Emit socket event to driver about new ride request
+    try {
+      const io = getIO();
+      io.to(`user-${trip.driverId}`).emit('new-ride-request', {
+        rideRequest: populatedRequest,
+        message: 'New ride request received',
+        timestamp: new Date()
+      });
+    } catch (socketError) {
+      console.error('Socket.io emit error:', socketError);
+    }
+
     res.status(201).json({
       success: true,
       data: populatedRequest
@@ -163,6 +175,13 @@ export const approveRide = async (req, res) => {
         message: 'Your ride request has been approved',
         timestamp: new Date()
       });
+      
+      // Emit trip seats update event for all users
+      io.emit('trip-seats-updated', {
+        tripId: rideRequest.tripId._id,
+        availableSeats: trip.availableSeats,
+        timestamp: new Date()
+      });
     } catch (socketError) {
       console.error('Socket.io emit error:', socketError);
       // Continue even if socket fails
@@ -233,6 +252,8 @@ export const rejectRide = async (req, res) => {
         message: 'Your ride request has been rejected',
         timestamp: new Date()
       });
+      
+      // Note: No seat update needed for rejection
     } catch (socketError) {
       console.error('Socket.io emit error:', socketError);
       // Continue even if socket fails

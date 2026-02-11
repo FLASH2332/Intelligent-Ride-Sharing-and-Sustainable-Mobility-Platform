@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { tripService } from '../../services/tripService';
 import { rideService } from '../../services/rideService';
 import RideRequestCard from '../../components/RideRequestCard';
+import { io } from 'socket.io-client';
 
 const RideRequests = () => {
   const navigate = useNavigate();
@@ -25,25 +26,34 @@ const RideRequests = () => {
     }
   }, [selectedTrip]);
 
-  // Auto-refresh trips and ride requests every 5 seconds
+  // Setup socket for real-time ride request notifications
   useEffect(() => {
-    const intervalId = setInterval(async () => {
-      try {
-        // Silently refresh trips in background
-        const data = await tripService.getDriverTrips();
-        setTrips(data.trips || []);
-        
-        // If a trip is selected, refresh its ride requests too
-        if (selectedTrip) {
-          const rideData = await rideService.getRideRequests(selectedTrip._id);
-          setRideRequests(rideData.rides || []);
-        }
-      } catch (err) {
-        console.error('Auto-refresh failed:', err);
-      }
-    }, 5000); // Refresh every 5 seconds
+    const token = localStorage.getItem('authToken');
+    const socket = io('http://localhost:5000', {
+      auth: { token }
+    });
 
-    return () => clearInterval(intervalId);
+    socket.on('connect', () => {
+      console.log('Connected to socket for ride requests');
+    });
+
+    // Listen for new ride requests
+    socket.on('new-ride-request', (data) => {
+      console.log('New ride request received:', data);
+      // Refresh trips and ride requests
+      fetchDriverTrips();
+      if (selectedTrip) {
+        fetchRideRequests(selectedTrip._id);
+      }
+    });
+
+    socket.on('error', (err) => {
+      console.error('Socket error:', err);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [selectedTrip]);
 
   const fetchDriverTrips = async () => {

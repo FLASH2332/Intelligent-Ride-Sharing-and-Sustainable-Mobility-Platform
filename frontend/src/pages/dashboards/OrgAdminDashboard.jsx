@@ -26,7 +26,7 @@ const OrgAdminDashboard = () => {
         if (!res.ok) {
           throw new Error(data.message || "Failed to fetch users");
         }
-
+        
         setUsers(data.users);
       } catch (err) {
         setError(err.message);
@@ -36,26 +36,6 @@ const OrgAdminDashboard = () => {
     };
 
     fetchPendingUsers();
-
-    // Auto-refresh every 5 seconds
-    const intervalId = setInterval(() => {
-      fetch("http://localhost:5000/org-admin/pending-users", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("authToken")}`,
-        },
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.users) {
-            setUsers(data.users);
-          }
-        })
-        .catch(err => {
-          console.error('Auto-refresh failed:', err);
-        });
-    }, 5000);
-
-    return () => clearInterval(intervalId);
   }, []);
 
   const approveUser = async (userId) => {
