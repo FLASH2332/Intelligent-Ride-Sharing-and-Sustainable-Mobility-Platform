@@ -1,174 +1,356 @@
-# Intelligent Ride Sharing and Sustainable Mobility Platform
+# 🌱 GreenCommute
 
-Multi-role carpooling platform with organization-based access control, driver matching, and real-time ride tracking.
+## Intelligent Ride Sharing & Sustainable Mobility Platform
 
-## Tech Stack
+> A secure, organization-based carpooling platform enabling employees to share rides efficiently with geospatial trip matching, real-time tracking, and multi-level administrative control.
 
-**Backend:**
-- Node.js + Express
-- MongoDB + Mongoose
-- JWT authentication
-- Socket.io (real-time tracking)
-- Multer (file uploads)
-- Nodemailer (email notifications)
-- Jest (testing)
+---
 
-**Frontend:**
-- React 19 + Vite
-- React Router
-- Tailwind CSS
-- Leaflet + React Leaflet (maps)
-- Lucide React (icons)
-- Vitest (testing)
+## 🚀 Overview
 
-## Features
+GreenCommute is a full-stack ride-sharing platform designed for **corporate and institutional environments**.
 
-**Authentication & Authorization:**
-- Multi-role system: Platform Admin, Organization Admin, Employee/Passenger, Driver
-- JWT-based authentication
-- Password reset via email
-- Organization-based access control
+It enables:
 
-**User Management:**
-- Employee registration and approval workflow
-- Profile completion
-- Driver registration with document upload
-- Admin approval for driver access
+* 🏢 Organization-scoped access
+* 👨‍💼 Role-based workflows (Platform Admin → Org Admin → Employee → Driver)
+* 📍 Intelligent geolocation-based trip matching
+* 🚗 Driver verification with document approval
+* 🔄 Real-time ride lifecycle tracking
+* 🌍 Fully open-source maps stack (no paid APIs)
 
-**Trip & Ride Management:**
-- Trip creation by drivers
-- Location-based trip search
-- Ride request and matching system
-- Driver approval/rejection of ride requests
-- Real-time trip status updates
-- Passenger pickup and dropoff tracking
+---
 
-**Real-time Features:**
-- Live driver location tracking
-- Socket.io integration for real-time updates
+## 🧠 System Architecture
 
-## API Routes
+### 🏗 High-Level Modules
 
-**Authentication (`/auth`)**
-- `POST /register` - Employee registration
-- `POST /login` - User login
-- `POST /forgot-password` - Request password reset
-- `POST /reset-password/:token` - Reset password
-
-**Platform Admin (`/platform`)**
-- `POST /organizations` - Create organization
-- `POST /org-admins` - Create organization admin
-
-**Organization Admin (`/org-admin`)**
-- `GET /pending-users` - List pending employees
-- `POST /approve-user` - Approve employee
-- `GET /driver-requests` - List driver requests
-- `POST /driver-requests/:id/approve` - Approve driver
-- `POST /driver-requests/:id/reject` - Reject driver
-
-**User (`/api/users`)**
-- `GET /me` - Get user profile
-- `PUT /complete-profile` - Complete profile
-- `POST /driver-intent` - Request driver access
-
-**Driver (`/driver`)**
-- `POST /upload-documents` - Upload license and RC documents
-
-**Trips (`/api/trips`)**
-- `POST /trips` - Create trip (driver only)
-- `GET /trips/search` - Search trips by location
-- `GET /trips/:id` - Get trip details
-- `GET /trips/driver/trips` - Get driver's trips
-- `POST /trips/:id/start` - Start trip
-- `POST /trips/:id/complete` - Complete trip
-- `POST /trips/:id/cancel` - Cancel trip
-- `POST /trips/:id/location` - Update driver location
-
-**Rides (`/api/rides`)**
-- `POST /rides/request` - Request ride
-- `GET /rides/trip/:tripId` - Get ride requests for trip (driver)
-- `GET /rides/passenger/rides` - Get passenger's rides
-- `POST /rides/:id/approve` - Approve ride request (driver)
-- `POST /rides/:id/reject` - Reject ride request (driver)
-- `POST /rides/:id/pickup` - Mark passenger as picked up
-- `POST /rides/:id/dropoff` - Mark passenger as dropped off
-
-## Setup
-
-1. **Install dependencies**
-   ```bash
-   npm install
-   cd frontend && npm install
-   cd backend && npm install
-   ```
-
-2. **Environment variables**
-
-   Create `.env` in `backend/` with:
-     ```
-     PORT=5000
-     MONGODB_URI=your_mongodb_uri
-     JWT_SECRET=your_jwt_secret
-     EMAIL_USER=your_gmail_address
-     EMAIL_PASS=your_gmail_app_password
-     ```
-
-## Development
-
-**Branch workflow:**
-- Use `dev` branch for development
-- Push final changes to `main`
-
-**Frontend:**
-```bash
-cd frontend
-npm run dev
+```
+┌────────────────────────────────────────────┐
+│                FRONTEND (React)            │
+│  - Authentication UI                       │
+│  - Role-Based Dashboards                   │
+│  - Trip Creation & Search                  │
+│  - Maps & Autocomplete                     │
+│  - Real-time Updates (Socket.io)           │
+└────────────────────────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│              BACKEND (Node + Express)      │
+│  - Auth & JWT Middleware                   │
+│  - Organization Isolation                  │
+│  - Driver Verification Workflow            │
+│  - Trip Matching Engine                    │
+│  - Ride Management                         │
+│  - Real-time Location Updates              │
+└────────────────────────────────────────────┘
+                    │
+                    ▼
+┌────────────────────────────────────────────┐
+│                MongoDB Database            │
+│  - Users (Multi-role)                      │
+│  - Organizations                           │
+│  - Trips (GeoJSON Indexed)                 │
+│  - Rides                                   │
+└────────────────────────────────────────────┘
 ```
 
-**Backend:**
+---
+
+## 📌 Core Features
+
+### 🔐 Authentication & Role System
+
+* JWT-based authentication
+* Password reset via email
+* Multi-role architecture:
+  * PLATFORM_ADMIN
+  * ORG_ADMIN
+  * EMPLOYEE
+  * DRIVER
+* Organization-level data isolation
+
+---
+
+### 🏢 Organization Workflow
+
+1. Platform Admin creates organization
+2. Platform Admin assigns Org Admin
+3. Employees register under org
+4. Org Admin approves employees
+5. Employees request driver access
+6. Org Admin verifies documents & approves drivers
+
+---
+
+### 🚗 Driver Verification System
+
+* License & RC upload (Multer)
+* Admin review dashboard
+* Approve / Reject with reason
+* Rejection reason visible to employee
+
+---
+
+### 🗺 Intelligent Maps Integration (100% Free Stack)
+
+| Technology       | Purpose              |
+| ---------------- | -------------------- |
+| Leaflet.js       | Map rendering        |
+| React-Leaflet    | React integration    |
+| OpenStreetMap    | Map tiles            |
+| Nominatim        | Address autocomplete |
+| MongoDB 2dsphere | Geospatial search    |
+
+✔ 5km proximity matching  
+✔ Debounced autocomplete  
+✔ GeoJSON storage  
+✔ No API keys required  
+✔ No billing required
+
+---
+
+### 📍 Geospatial Trip Matching
+
+* Driver stores trip with GeoJSON coordinates
+* Passenger search uses MongoDB `$geoNear`
+* Radius-based intelligent matching
+* Fallback to regex search if coordinates unavailable
+
+---
+
+### 🔄 Ride Lifecycle
+
+* Passenger requests ride
+* Driver approves/rejects
+* Trip starts
+* Pickup & dropoff tracking
+* Real-time status updates via Socket.io
+
+---
+
+## 🧩 System Design Diagrams
+
+### 📊 Use Case Diagram
+
+📍 *Insert here*
+
+```
+docs/diagrams/usecase.png
+```
+
+---
+
+### 🔄 Activity Diagram
+
+📍 *Insert here*
+
+```
+docs/diagrams/activity.png
+```
+
+---
+
+### 🧬 Class Diagram
+
+📍 *Insert here*
+
+```
+docs/diagrams/class.png
+```
+
+---
+
+### 🔁 Sequence Diagram
+
+📍 *Insert here*
+
+```
+docs/diagrams/sequence.png
+```
+
+---
+
+## 📸 Screenshots
+
+| Feature                 | Screenshot                                 |
+| ----------------------- | ------------------------------------------ |
+| Login Page              | `docs/screenshots/login.png`               |
+| Employee Dashboard      | `docs/screenshots/employee-dashboard.png`  |
+| Driver Upload           | `docs/screenshots/upload-documents.png`    |
+| Org Admin Driver Review | `docs/screenshots/admin-driver-review.png` |
+| Trip Creation           | `docs/screenshots/create-trip.png`         |
+| Trip Search             | `docs/screenshots/search-trips.png`        |
+
+---
+
+## 🛠 Tech Stack
+
+### Backend
+
+* Node.js
+* Express.js
+* MongoDB + Mongoose
+* JWT Authentication
+* Multer (File Uploads)
+* Nodemailer
+* Socket.io
+* Jest
+
+### Frontend
+
+* React 19 + Vite
+* React Router
+* Tailwind CSS
+* Leaflet + React Leaflet
+* Lucide Icons
+* Vitest
+
+---
+
+## 📡 API Overview
+
+### Authentication
+
+```
+POST /auth/register
+POST /auth/login
+POST /auth/forgot-password
+POST /auth/reset-password/:token
+```
+
+### Organization Admin
+
+```
+GET  /org-admin/pending-users
+POST /org-admin/approve-user
+GET  /org-admin/driver-requests
+POST /org-admin/driver-requests/:id/approve
+POST /org-admin/driver-requests/:id/reject
+```
+
+### Driver
+
+```
+POST /driver/upload-documents
+```
+
+### Trips
+
+```
+POST /api/trips
+GET  /api/trips/search
+POST /api/trips/:id/start
+POST /api/trips/:id/complete
+POST /api/trips/:id/location
+```
+
+### Rides
+
+```
+POST /api/rides/request
+POST /api/rides/:id/approve
+POST /api/rides/:id/reject
+POST /api/rides/:id/pickup
+POST /api/rides/:id/dropoff
+```
+
+---
+
+## ⚙ Setup Instructions
+
+### 1️⃣ Install Dependencies
+
+```bash
+npm install
+cd frontend && npm install
+cd ../backend && npm install
+```
+
+---
+
+### 2️⃣ Environment Variables
+
+Create `backend/.env`:
+
+```
+PORT=5000
+MONGODB_URI=your_mongodb_uri
+JWT_SECRET=your_secret
+EMAIL_USER=your_email
+EMAIL_PASS=your_app_password
+```
+
+---
+
+### 3️⃣ Run Development Servers
+
+Backend:
+
 ```bash
 cd backend
 npm run dev
 ```
 
-## Testing
+Frontend:
 
-**Backend (Jest):**
-```bash
-cd backend
-npm test
-npm run test:watch
-npm run test:coverage
-```
-
-**Frontend (Vitest):**
 ```bash
 cd frontend
+npm run dev
+```
+
+---
+
+## 🧪 Testing
+
+Backend:
+
+```bash
 npm test
-npm run test:ui
 npm run test:coverage
 ```
 
-## Linting
+Frontend:
 
-**Run manually:**
 ```bash
-npm --prefix frontend run lint
-npm --prefix backend run lint
+npm test
+npm run test:coverage
 ```
 
-**Auto-fix:**
-```bash
-npm --prefix frontend run lint:fix
-npm --prefix backend run lint:fix
-```
+---
 
-**Pre-push hook:** Linting runs automatically before every `git push`.
+## 🔐 Security Highlights
 
-## Project Structure
+* Org-level data isolation via `organizationId`
+* Role-based route guards
+* Secure JWT verification middleware
+* Document uploads validated
+* No cross-org access allowed
+* Rejection reason logging for transparency
 
-```
-├── frontend/          # React + Vite
-├── backend/           # Node.js + Express
-└── .github/workflows/ # CI/CD
-```
+---
+
+## 📈 Future Enhancements
+
+* Live map tracking UI
+* Route visualization
+* ETA calculation
+* Payment integration
+* Rating system
+* Carbon footprint analytics
+
+---
+
+## 👥 Contributors
+
+* Backend & System Architecture – *You*
+* Maps & Geolocation Engine – *Your teammate*
+
+---
+
+## 📜 License
+
+Open-source academic project.
+
+---
