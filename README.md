@@ -134,41 +134,25 @@ It enables:
 
 ### 📊 Use Case Diagram
 
-📍 *Insert here*
-
-```
-docs/diagrams/usecase.png
-```
+![Use Case Diagram](docs/diagrams/usecase.png)
 
 ---
 
 ### 🔄 Activity Diagram
 
-📍 *Insert here*
-
-```
-docs/diagrams/activity.png
-```
+![Activity Diagram](docs/diagrams/activity.png)
 
 ---
 
 ### 🧬 Class Diagram
 
-📍 *Insert here*
-
-```
-docs/diagrams/class.png
-```
+![Class Diagram](docs/diagrams/class.png)
 
 ---
 
 ### 🔁 Sequence Diagram
 
-📍 *Insert here*
-
-```
-docs/diagrams/sequence.png
-```
+![Sequence Diagram](docs/diagrams/sequence.png)
 
 ---
 
