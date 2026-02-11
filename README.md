@@ -342,13 +342,6 @@ npm run test:coverage
 
 ---
 
-## 👥 Contributors
-
-* Backend & System Architecture – *You*
-* Maps & Geolocation Engine – *Your teammate*
-
----
-
 ## 📜 License
 
 Open-source academic project.
