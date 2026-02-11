@@ -28,6 +28,36 @@ const SearchTrips = () => {
     fetchPassengerRides();
   }, []);
 
+  // Auto-refresh search results every 5 seconds if search has been performed
+  useEffect(() => {
+    if (!hasSearched || loading) return;
+
+    const intervalId = setInterval(() => {
+      // Silently refresh trips in the background
+      const searchData = { ...searchParams };
+      
+      if (sourceLocation?.lat && sourceLocation?.lng) {
+        searchData.sourceLat = sourceLocation.lat;
+        searchData.sourceLng = sourceLocation.lng;
+      }
+      
+      if (destinationLocation?.lat && destinationLocation?.lng) {
+        searchData.destLat = destinationLocation.lat;
+        searchData.destLng = destinationLocation.lng;
+      }
+
+      tripService.searchTrips(searchData)
+        .then(data => {
+          setTrips(data.trips || []);
+        })
+        .catch(err => {
+          console.error('Auto-refresh failed:', err);
+        });
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, [hasSearched, loading, searchParams, sourceLocation, destinationLocation]);
+
   const fetchPassengerRides = async () => {
     try {
       const data = await rideService.getPassengerRides();
@@ -91,6 +121,19 @@ const SearchTrips = () => {
       
       setSuccessMessage('Ride requested successfully! The driver will review your request.');
       setRequestedTripIds([...requestedTripIds, tripId]);
+      
+      // Refresh trips to show updated seat availability
+      const searchData = { ...searchParams };
+      if (sourceLocation?.lat && sourceLocation?.lng) {
+        searchData.sourceLat = sourceLocation.lat;
+        searchData.sourceLng = sourceLocation.lng;
+      }
+      if (destinationLocation?.lat && destinationLocation?.lng) {
+        searchData.destLat = destinationLocation.lat;
+        searchData.destLng = destinationLocation.lng;
+      }
+      const data = await tripService.searchTrips(searchData);
+      setTrips(data.trips || []);
       
       // Clear success message after 5 seconds
       setTimeout(() => setSuccessMessage(''), 5000);

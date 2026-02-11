@@ -25,6 +25,27 @@ const RideRequests = () => {
     }
   }, [selectedTrip]);
 
+  // Auto-refresh trips and ride requests every 5 seconds
+  useEffect(() => {
+    const intervalId = setInterval(async () => {
+      try {
+        // Silently refresh trips in background
+        const data = await tripService.getDriverTrips();
+        setTrips(data.trips || []);
+        
+        // If a trip is selected, refresh its ride requests too
+        if (selectedTrip) {
+          const rideData = await rideService.getRideRequests(selectedTrip._id);
+          setRideRequests(rideData.rides || []);
+        }
+      } catch (err) {
+        console.error('Auto-refresh failed:', err);
+      }
+    }, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(intervalId);
+  }, [selectedTrip]);
+
   const fetchDriverTrips = async () => {
     try {
       setLoading(true);

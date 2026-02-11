@@ -33,6 +33,26 @@ const EmployeeDashboard = () => {
     };
 
     fetchUser();
+
+    // Auto-refresh user data every 10 seconds (slower since it changes less frequently)
+    const intervalId = setInterval(async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/users/me", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("authToken")}`,
+          },
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          setUser(data.user);
+        }
+      } catch (err) {
+        console.error('User auto-refresh failed:', err);
+      }
+    }, 10000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // 🔹 Fetch passenger rides
@@ -51,6 +71,18 @@ const EmployeeDashboard = () => {
 
     if (user) {
       fetchPassengerRides();
+
+      // Auto-refresh passenger rides every 5 seconds
+      const intervalId = setInterval(async () => {
+        try {
+          const data = await rideService.getPassengerRides();
+          setPassengerRides(data.rides || []);
+        } catch (err) {
+          console.error('Auto-refresh failed:', err);
+        }
+      }, 5000);
+
+      return () => clearInterval(intervalId);
     }
   }, [user]);
 
