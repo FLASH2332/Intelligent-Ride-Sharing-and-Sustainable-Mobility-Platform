@@ -1,7 +1,111 @@
-// Socket.io handlers for ride sharing real-time features
+/**
+ * @fileoverview Ride Socket.io Handlers
+ * @description Real-time communication for ride-sharing features including trip rooms,
+ * driver location updates, and trip status changes.
+ * @module sockets/rideSocket
+ */
+
 import Trip from '../models/Trip.js';
 import jwt from 'jsonwebtoken';
 
+/**
+ * Setup Ride Socket Handlers
+ * 
+ * @description Initializes Socket.io event handlers for ride-sharing real-time features.
+ * Implements JWT authentication, room management, and location broadcasting.
+ * 
+ * @param {Object} io - Socket.io server instance
+ * 
+ * @authentication
+ * - Requires JWT token in socket.handshake.auth.token
+ * - Token verified on connection
+ * - socket.userId and socket.userRole attached from decoded token
+ * 
+ * @rooms
+ * - `user-${userId}`: Personal room for user-specific notifications
+ * - `trip-${tripId}`: Trip room for all passengers and driver
+ * 
+ * @events
+ * 
+ * ## Client -> Server Events:
+ * 
+ * ### joinTrip
+ * Join a trip room to receive real-time updates
+ * @param {string} tripId - MongoDB ObjectId of trip
+ * @emits trip-joined - Confirmation of joining trip room
+ * @emits error - If tripId missing
+ * 
+ * ### leaveTrip
+ * Leave a trip room
+ * @param {string} tripId - MongoDB ObjectId of trip
+ * 
+ * ### updateDriverLocation
+ * Driver updates current location during active trip
+ * @param {Object} data
+ * @param {string} data.tripId - MongoDB ObjectId of trip
+ * @param {Object} data.location - GeoJSON Point location
+ * @param {Object} data.location.coordinates - GeoJSON coordinates
+ * @emits driverLocationUpdate - Broadcast to all in trip room
+ * @emits error - If validation fails or update fails
+ * @note Only updates if trip.status === 'IN_PROGRESS'
+ * 
+ * ### tripStatusChanged
+ * Broadcast trip status change to all passengers
+ * @param {Object} data
+ * @param {string} data.tripId - MongoDB ObjectId of trip
+ * @param {string} data.status - New trip status
+ * @emits tripStatusUpdate - Broadcast to all in trip room
+ * @emits error - If tripId or status missing
+ * 
+ * ## Server -> Client Events:
+ * 
+ * ### trip-joined
+ * Confirmation of successful trip room join
+ * @payload {Object} { tripId, message }
+ * 
+ * ### driverLocationUpdate
+ * Real-time driver location update
+ * @payload {Object} GeoJSON Point location
+ * @room trip-${tripId}
+ * 
+ * ### tripStatusUpdate
+ * Trip status change notification
+ * @payload {string} New status (STARTED, IN_PROGRESS, COMPLETED, etc.)
+ * @room trip-${tripId}
+ * 
+ * ### error
+ * Error notification
+ * @payload {Object} { message }
+ * 
+ * @security
+ * - JWT authentication required for all connections
+ * - Users auto-join personal room on connection
+ * - Drivers can only update their own trips
+ * - Location updates only processed for IN_PROGRESS trips
+ * 
+ * @example Client Usage:
+ * ```javascript
+ * import io from 'socket.io-client';
+ * 
+ * const socket = io('http://localhost:5000', {
+ *   auth: { token: 'jwt_token_here' }
+ * });
+ * 
+ * // Join trip room
+ * socket.emit('joinTrip', tripId);
+ * 
+ * // Listen for location updates
+ * socket.on('driverLocationUpdate', (location) => {
+ *   console.log('Driver location:', location);
+ * });
+ * 
+ * // Driver updates location
+ * socket.emit('updateDriverLocation', {
+ *   tripId,
+ *   location: { coordinates: { type: 'Point', coordinates: [lng, lat] } }
+ * });
+ * ```
+ */
 export const setupRideSocket = (io) => {
   // Socket authentication middleware
   io.use((socket, next) => {

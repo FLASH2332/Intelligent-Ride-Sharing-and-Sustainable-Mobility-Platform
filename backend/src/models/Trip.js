@@ -1,5 +1,95 @@
 import mongoose from 'mongoose';
 
+/**
+ * @fileoverview Trip Model
+ * @description Defines the Trip schema for driver-created ride-sharing trips.
+ * Includes geospatial data for route planning and proximity matching.
+ * @module models/Trip
+ */
+
+/**
+ * Trip Schema
+ * 
+ * @description Represents a scheduled trip created by a driver. Passengers can
+ * request to join trips and drivers manage passenger approvals.
+ * 
+ * @schema
+ * 
+ * @property {ObjectId} driverId - Reference to User (driver)
+ * @property {string} vehicleType - CAR or BIKE
+ * @property {number} totalSeats - Total seats available (CAR: 1-7, BIKE: 1)
+ * @property {number} availableSeats - Current available seats (decrements on approval)
+ * @property {string} source - Source location text
+ * @property {Object} [sourceLocation] - GeoJSON Point for source
+ * @property {string} sourceLocation.address - Source address
+ * @property {Object} sourceLocation.coordinates - GeoJSON Point
+ * @property {string} sourceLocation.coordinates.type - Always 'Point'
+ * @property {number[]} sourceLocation.coordinates.coordinates - [longitude, latitude]
+ * @property {string} destination - Destination location text
+ * @property {Object} [destinationLocation] - GeoJSON Point for destination
+ * @property {string} destinationLocation.address - Destination address
+ * @property {Object} destinationLocation.coordinates - GeoJSON Point
+ * @property {string} destinationLocation.coordinates.type - Always 'Point'
+ * @property {number[]} destinationLocation.coordinates.coordinates - [longitude, latitude]
+ * @property {Date} scheduledTime - Trip scheduled time (must be within 7 days)
+ * @property {number} estimatedCost - Calculated cost (50 + totalSeats * 10)
+ * @property {string} status - SCHEDULED, STARTED, IN_PROGRESS, COMPLETED, CANCELLED
+ * @property {Object} [currentLocation] - Driver's current location (GeoJSON Point)
+ * @property {string} currentLocation.type - Always 'Point'
+ * @property {number[]} currentLocation.coordinates - [longitude, latitude]
+ * @property {Object} [route] - GeoJSON LineString route
+ * @property {Date} [actualStartTime] - When trip started
+ * @property {Date} [actualEndTime] - When trip completed/ended
+ * @property {Date} createdAt - Trip creation timestamp
+ * @property {Date} updatedAt - Last update timestamp
+ * 
+ * @indexes
+ * - sourceLocation.coordinates: 2dsphere index for geospatial queries
+ * - destinationLocation.coordinates: 2dsphere index for geospatial queries
+ * - status: Index for filtering available trips
+ * 
+ * @geospatial
+ * - Coordinates stored as [longitude, latitude] (GeoJSON standard)
+ * - 2dsphere indexes enable proximity searches
+ * - Search trips within radius of user location
+ * - Calculate distances between locations
+ * 
+ * @validation
+ * - scheduledTime must be within next 7 days
+ * - CAR: 1-7 seats, BIKE: exactly 1 seat
+ * - availableSeats cannot be negative
+ * 
+ * @lifecycle
+ * 1. Driver creates trip via /api/trips
+ *    - status = SCHEDULED, availableSeats = totalSeats
+ * 2. Passengers request via /api/rides/request
+ * 3. Driver approves via /api/rides/:id/approve
+ *    - availableSeats decremented atomically
+ * 4. Driver starts trip via /api/trips/:id/start
+ *    - status = STARTED, actualStartTime = now
+ * 5. Driver updates location via /api/trips/:id/location
+ *    - currentLocation updated periodically
+ * 6. Driver completes via /api/trips/:id/complete
+ *    - status = COMPLETED, actualEndTime = now
+ * 
+ * @example
+ * {
+ *   "driverId": "507f1f77bcf86cd799439011",
+ *   "vehicleType": "CAR",
+ *   "totalSeats": 4,
+ *   "availableSeats": 2,
+ *   "source": "Downtown Office",
+ *   "sourceLocation": {
+ *     "coordinates": {
+ *       "type": "Point",
+ *       "coordinates": [-74.0060, 40.7128]
+ *     }
+ *   },
+ *   "destination": "Airport",
+ *   "scheduledTime": "2026-02-13T09:00:00.000Z",
+ *   "status": "SCHEDULED"
+ * }
+ */
 const tripSchema = new mongoose.Schema({
   driverId: {
     type: mongoose.Schema.Types.ObjectId,

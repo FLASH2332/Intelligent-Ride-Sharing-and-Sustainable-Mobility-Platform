@@ -1,9 +1,109 @@
 import Trip from '../models/Trip.js';
 import { getIO } from '../config/socket.js';
 
-// @desc    Create a new trip
-// @route   POST /api/trips
-// @access  Private (Drivers only)
+/**
+ * @fileoverview Trip Management Controller
+ * @description Handles all trip lifecycle operations including creation, search, status updates,
+ * and location tracking. Drivers create and manage trips, passengers search and join them.
+ * Implements geospatial queries and real-time Socket.io notifications.
+ * @module controllers/tripController
+ */
+
+/**
+ * Create New Trip
+ * 
+ * @description Driver creates a new scheduled trip with route and seat availability.
+ * Supports geolocation-based route planning. Notifies all users of new trip via Socket.io.
+ * 
+ * @route POST /api/trips
+ * @access Private (Drivers only)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {boolean} req.user.isDriver - Must be true
+ * @param {Object} req.body - Request body
+ * @param {string} req.body.vehicleType - Type of vehicle (CAR or BIKE)
+ * @param {number} req.body.totalSeats - Total seats available (CAR: 1-7, BIKE: 1)
+ * @param {string} req.body.scheduledTime - ISO timestamp (must be within next 7 days)
+ * @param {string} req.body.source - Source location text
+ * @param {string} req.body.destination - Destination location text
+ * @param {Object} [req.body.sourceLocation] - Source coordinates (optional)
+ * @param {number} req.body.sourceLocation.lat - Source latitude
+ * @param {number} req.body.sourceLocation.lng - Source longitude
+ * @param {string} [req.body.sourceLocation.address] - Source address
+ * @param {Object} [req.body.destinationLocation] - Destination coordinates (optional)
+ * @param {number} req.body.destinationLocation.lat - Destination latitude
+ * @param {number} req.body.destinationLocation.lng - Destination longitude
+ * @param {string} [req.body.destinationLocation.address] - Destination address
+ * 
+ * @returns {Object} 201 - Trip created successfully
+ * @returns {Object} 400 - Validation error (missing fields, invalid seats, invalid time)
+ * @returns {Object} 401 - Authentication error
+ * @returns {Object} 403 - Not a driver
+ * 
+ * @example
+ * // Request
+ * POST /api/trips
+ * Authorization: Bearer <jwt_token>
+ * {
+ *   "vehicleType": "CAR",
+ *   "totalSeats": 4,
+ *   "scheduledTime": "2026-02-13T09:00:00.000Z",
+ *   "source": "Downtown Office",
+ *   "destination": "Airport Terminal 2",
+ *   "sourceLocation": {
+ *     "lat": 40.7128,
+ *     "lng": -74.0060,
+ *     "address": "123 Main St, New York, NY"
+ *   },
+ *   "destinationLocation": {
+ *     "lat": 40.6413,
+ *     "lng": -73.7781,
+ *     "address": "JFK Airport, Queens, NY"
+ *   }
+ * }
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "message": "Trip created successfully",
+ *   "trip": {
+ *     "_id": "507f1f77bcf86cd799439011",
+ *     "driverId": { "_id": "...", "name": "Jane Smith", "email": "..." },
+ *     "vehicleType": "CAR",
+ *     "totalSeats": 4,
+ *     "availableSeats": 4,
+ *     "scheduledTime": "2026-02-13T09:00:00.000Z",
+ *     "source": "Downtown Office",
+ *     "destination": "Airport Terminal 2",
+ *     "estimatedCost": 90,
+ *     "status": "SCHEDULED",
+ *     ...
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Only users with isDriver=true can create trips
+ * - Scheduled time must be within next 7 days
+ * - CAR: 1-7 seats, BIKE: exactly 1 seat
+ * - availableSeats initialized to totalSeats
+ * - estimatedCost calculated: 50 + (totalSeats * 10)
+ * - Status set to SCHEDULED
+ * - Geolocation stored as GeoJSON Point (lng, lat order)
+ * - Route created as LineString if both coordinates provided
+ * - Emits Socket.io 'new-trip-created' event to all users
+ * 
+ * @geospatial
+ * - sourceLocation.coordinates: GeoJSON Point format [lng, lat]
+ * - destinationLocation.coordinates: GeoJSON Point format [lng, lat]
+ * - route: GeoJSON LineString connecting source to destination
+ * - Enables proximity-based trip search
+ * 
+ * @realtime Socket.io Events Emitted:
+ * - Event: 'new-trip-created'
+ *   - Room: broadcast to all
+ *   - Payload: { trip, timestamp }
+ */
 export const createTrip = async (req, res) => {
   try {
     // Validate user authentication
@@ -141,9 +241,75 @@ export const createTrip = async (req, res) => {
   }
 };
 
-// @desc    Search for trips by source and destination
-// @route   GET /api/trips/search
-// @access  Private
+/**
+ * Search Trips
+ * 
+ * @description Search for available trips by source and destination with optional geospatial
+ * proximity matching. Supports text-based and coordinate-based search.
+ * 
+ * @route GET /api/trips/search
+ * @access Private (Authenticated users)
+ * 
+ * @param {Object} req.query - Query parameters
+ * @param {string} req.query.source - Source location text (required)
+ * @param {string} req.query.destination - Destination location text (required)
+ * @param {string} [req.query.vehicleType] - Filter by vehicle type (CAR or BIKE)
+ * @param {number} [req.query.sourceLat] - Source latitude for geospatial search
+ * @param {number} [req.query.sourceLng] - Source longitude for geospatial search
+ * @param {number} [req.query.destLat] - Destination latitude for geospatial search
+ * @param {number} [req.query.destLng] - Destination longitude for geospatial search
+ * @param {number} [req.query.maxDistance=5000] - Max distance in meters (default 5km)
+ * 
+ * @returns {Object} 200 - List of matching trips
+ * @returns {Object} 400 - Missing required parameters or search error
+ * 
+ * @example
+ * // Geospatial search
+ * GET /api/trips/search?source=Downtown&destination=Airport&sourceLat=40.7128&sourceLng=-74.0060&destLat=40.6413&destLng=-73.7781&maxDistance=3000
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Text-based search
+ * GET /api/trips/search?source=Downtown&destination=Airport&vehicleType=CAR
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "count": 3,
+ *   "trips": [
+ *     {
+ *       "_id": "...",
+ *       "driverId": { "name": "Jane Smith", "email": "..." },
+ *       "source": "Downtown Office",
+ *       "destination": "Airport Terminal 2",
+ *       "scheduledTime": "2026-02-13T09:00:00.000Z",
+ *       "vehicleType": "CAR",
+ *       "availableSeats": 3,
+ *       "estimatedCost": 90,
+ *       "sourceDistance": 850.5,
+ *       ...
+ *     },
+ *     ...
+ *   ]
+ * }
+ * 
+ * @businessLogic
+ * - Returns only SCHEDULED trips with availableSeats > 0
+ * - Geospatial mode: uses MongoDB $geoNear aggregation
+ * - Finds trips with source within maxDistance of search source
+ * - Finds trips with destination within maxDistance of search destination
+ * - Text mode (fallback): uses regex matching on source and destination
+ * - Results sorted by scheduledTime (ascending)
+ * - Populates driver info (name, email)
+ * - Calculates sourceDistance in meters (geospatial only)
+ * 
+ * @geospatial Aggregation Pipeline (when coordinates provided):
+ * 1. $geoNear: Find trips with source near search source
+ * 2. $addFields: Calculate distance to destination
+ * 3. $match: Filter by destination proximity
+ * 4. $lookup: Join with users collection for driver info
+ * 5. $sort: Order by scheduledTime
+ */
 export const searchTrips = async (req, res) => {
   try {
     const { source, destination, vehicleType, sourceLat, sourceLng, destLat, destLng, maxDistance = 5000 } = req.query;
@@ -293,9 +459,52 @@ export const searchTrips = async (req, res) => {
   }
 };
 
-// @desc    Get driver's trips
-// @route   GET /api/trips/driver/trips
-// @access  Private (Driver only)
+/**
+ * Get Driver's Trips
+ * 
+ * @description Retrieves all trips created by the authenticated driver, sorted by
+ * most recent first.
+ * 
+ * @route GET /api/trips/driver/trips
+ * @access Private (Drivers only)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * 
+ * @returns {Object} 200 - List of driver's trips
+ * 
+ * @example
+ * // Request
+ * GET /api/trips/driver/trips
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "count": 10,
+ *   "trips": [
+ *     {
+ *       "_id": "...",
+ *       "source": "Downtown",
+ *       "destination": "Airport",
+ *       "scheduledTime": "2026-02-13T09:00:00.000Z",
+ *       "status": "COMPLETED",
+ *       "vehicleType": "CAR",
+ *       "totalSeats": 4,
+ *       "availableSeats": 1,
+ *       ...
+ *     },
+ *     ...
+ *   ]
+ * }
+ * 
+ * @businessLogic
+ * - Returns all trips where driverId matches authenticated user
+ * - Includes trips in all statuses (SCHEDULED, STARTED, IN_PROGRESS, COMPLETED, CANCELLED)
+ * - Sorted by scheduledTime descending (newest first)
+ * - Populates driver details
+ * - Used by driver dashboard to manage trips and view history
+ */
 export const getDriverTrips = async (req, res) => {
   try {
     const trips = await Trip.find({ driverId: req.user.userId })
@@ -317,9 +526,48 @@ export const getDriverTrips = async (req, res) => {
   }
 };
 
-// @desc    End a trip
-// @route   POST /api/trips/:id/end
-// @access  Private (Driver only)
+/**
+ * End Trip
+ * 
+ * @description Driver ends an in-progress trip and marks it as completed. Only for trips
+ * in IN_PROGRESS status.
+ * 
+ * @route POST /api/trips/:id/end
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of trip to end
+ * 
+ * @returns {Object} 200 - Trip ended successfully
+ * @returns {Object} 400 - Cannot end (not in IN_PROGRESS status)
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Trip not found
+ * 
+ * @example
+ * // Request
+ * POST /api/trips/507f1f77bcf86cd799439011/end
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "message": "Trip ended successfully",
+ *   "trip": {
+ *     "_id": "507f1f77bcf86cd799439011",
+ *     "status": "COMPLETED",
+ *     "actualEndTime": "2026-02-13T10:30:00.000Z",
+ *     ...
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Only trip owner (driver) can end their trip
+ * - Trip must be in IN_PROGRESS status
+ * - Status transitions: IN_PROGRESS -> COMPLETED
+ * - Records actualEndTime timestamp
+ * - Similar to completeTrip but requires IN_PROGRESS status
+ */
 export const endTrip = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -367,9 +615,58 @@ export const endTrip = async (req, res) => {
   }
 };
 
-// @desc    Update driver's current location during trip
-// @route   POST /api/trips/:id/location
-// @access  Private (Driver only)
+/**
+ * Update Driver Location
+ * 
+ * @description Driver updates their current GPS location during trip. Enables real-time
+ * passenger tracking. Location stored as GeoJSON Point.
+ * 
+ * @route POST /api/trips/:id/location
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of the trip
+ * @param {Object} req.body - Request body
+ * @param {number} req.body.lat - Current latitude
+ * @param {number} req.body.lng - Current longitude
+ * 
+ * @returns {Object} 200 - Location updated successfully
+ * @returns {Object} 400 - Missing coordinates
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Trip not found
+ * 
+ * @example
+ * // Request
+ * POST /api/trips/507f1f77bcf86cd799439011/location
+ * Authorization: Bearer <jwt_token>
+ * {
+ *   "lat": 40.7128,
+ *   "lng": -74.0060
+ * }
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "message": "Location updated successfully",
+ *   "location": {
+ *     "type": "Point",
+ *     "coordinates": [-74.0060, 40.7128]
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Only trip owner (driver) can update location
+ * - Latitude and longitude are required
+ * - Location stored as GeoJSON Point [lng, lat]
+ * - Typically called periodically (e.g., every 5-30 seconds) during active trip
+ * - Passengers can track driver location in real-time
+ * - Consider emitting Socket.io event for live updates (future enhancement)
+ * 
+ * @geospatial
+ * - currentLocation: GeoJSON Point format [lng, lat]
+ * - Enables distance calculations and map display
+ */
 export const updateDriverLocation = async (req, res) => {
   try {
     const { lat, lng } = req.body;
@@ -421,9 +718,68 @@ export const updateDriverLocation = async (req, res) => {
   }
 };
 
-// @desc    Get trip details by ID
-// @route   GET /api/trips/:id
-// @access  Private
+/**
+ * Get Trip Details
+ * 
+ * @description Retrieves complete trip information including driver details and all
+ * associated ride requests with passenger information.
+ * 
+ * @route GET /api/trips/:id
+ * @access Private (Authenticated users)
+ * 
+ * @param {string} req.params.id - MongoDB ObjectId of the trip
+ * 
+ * @returns {Object} 200 - Complete trip details
+ * @returns {Object} 404 - Trip not found
+ * 
+ * @example
+ * // Request
+ * GET /api/trips/507f1f77bcf86cd799439011
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "trip": {
+ *     "_id": "507f1f77bcf86cd799439011",
+ *     "driverId": {
+ *       "_id": "...",
+ *       "name": "Jane Smith",
+ *       "email": "jane@example.com",
+ *       "phone": "+1234567890"
+ *     },
+ *     "source": "Downtown Office",
+ *     "destination": "Airport Terminal 2",
+ *     "scheduledTime": "2026-02-13T09:00:00.000Z",
+ *     "vehicleType": "CAR",
+ *     "totalSeats": 4,
+ *     "availableSeats": 2,
+ *     "status": "SCHEDULED",
+ *     "rides": [
+ *       {
+ *         "_id": "...",
+ *         "passengerId": {
+ *           "_id": "...",
+ *           "name": "John Doe",
+ *           "email": "john@example.com",
+ *           "phone": "+0987654321"
+ *         },
+ *         "status": "APPROVED",
+ *         "pickupStatus": "PICKED_UP"
+ *       }
+ *     ],
+ *     ...
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Available to all authenticated users
+ * - Populates driver contact information (name, email, phone)
+ * - Populates all ride requests associated with trip
+ * - Each ride includes passenger details (name, email, phone)
+ * - Shows current seat availability
+ * - Used for trip detail view and live tracking
+ */
 export const getTripById = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id)
@@ -457,9 +813,48 @@ export const getTripById = async (req, res) => {
   }
 };
 
-// @desc    Start a trip
-// @route   POST /api/trips/:id/start
-// @access  Private (Driver only)
+/**
+ * Start Trip
+ * 
+ * @description Driver marks trip as started when beginning the journey. Records actual
+ * start time and transitions status from SCHEDULED to STARTED.
+ * 
+ * @route POST /api/trips/:id/start
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of trip to start
+ * 
+ * @returns {Object} 200 - Trip started successfully
+ * @returns {Object} 400 - Cannot start (wrong status)
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Trip not found
+ * 
+ * @example
+ * // Request
+ * POST /api/trips/507f1f77bcf86cd799439011/start
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "message": "Trip started successfully",
+ *   "trip": {
+ *     "_id": "507f1f77bcf86cd799439011",
+ *     "status": "STARTED",
+ *     "actualStartTime": "2026-02-13T09:02:00.000Z",
+ *     ...
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Only trip owner (driver) can start their trip
+ * - Can only start SCHEDULED trips
+ * - Status transitions: SCHEDULED -> STARTED
+ * - Records actualStartTime timestamp
+ * - Driver can now update location and mark passengers as picked up
+ */
 export const startTrip = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -505,9 +900,48 @@ export const startTrip = async (req, res) => {
   }
 };
 
-// @desc    Complete a trip
-// @route   POST /api/trips/:id/complete
-// @access  Private (Driver only)
+/**
+ * Complete Trip
+ * 
+ * @description Driver marks trip as completed when journey ends. Records actual end time.
+ * 
+ * @route POST /api/trips/:id/complete
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of trip to complete
+ * 
+ * @returns {Object} 200 - Trip completed successfully
+ * @returns {Object} 400 - Trip already completed
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Trip not found
+ * 
+ * @example
+ * // Request
+ * POST /api/trips/507f1f77bcf86cd799439011/complete
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "message": "Trip completed successfully",
+ *   "trip": {
+ *     "_id": "507f1f77bcf86cd799439011",
+ *     "status": "COMPLETED",
+ *     "actualEndTime": "2026-02-13T10:30:00.000Z",
+ *     ...
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Only trip owner (driver) can complete their trip
+ * - Can complete from any status except already COMPLETED
+ * - Status transitions: SCHEDULED/STARTED/IN_PROGRESS -> COMPLETED
+ * - Records actualEndTime timestamp
+ * - Marks trip as finished in history
+ * - No further modifications allowed after completion
+ */
 export const completeTrip = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);
@@ -553,9 +987,48 @@ export const completeTrip = async (req, res) => {
   }
 };
 
-// @desc    Cancel a trip
-// @route   POST /api/trips/:id/cancel
-// @access  Private (Driver only)
+/**
+ * Cancel Trip
+ * 
+ * @description Driver cancels a trip before or during journey. Prevents further passenger
+ * requests and modifications.
+ * 
+ * @route POST /api/trips/:id/cancel
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of trip to cancel
+ * 
+ * @returns {Object} 200 - Trip cancelled successfully
+ * @returns {Object} 400 - Cannot cancel (already completed or cancelled)
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Trip not found
+ * 
+ * @example
+ * // Request
+ * POST /api/trips/507f1f77bcf86cd799439011/cancel
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "message": "Trip cancelled successfully",
+ *   "trip": {
+ *     "_id": "507f1f77bcf86cd799439011",
+ *     "status": "CANCELLED",
+ *     ...
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Only trip owner (driver) can cancel their trip
+ * - Cannot cancel COMPLETED or already CANCELLED trips
+ * - Status transitions: SCHEDULED/STARTED/IN_PROGRESS -> CANCELLED
+ * - Trip removed from search results
+ * - Existing ride requests remain but trip unavailable
+ * - Consider notifying passengers (future enhancement)
+ */
 export const cancelTrip = async (req, res) => {
   try {
     const trip = await Trip.findById(req.params.id);

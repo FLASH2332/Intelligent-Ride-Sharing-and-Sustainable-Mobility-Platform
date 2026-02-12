@@ -2,9 +2,68 @@ import RideRequest from '../models/RideRequest.js';
 import Trip from '../models/Trip.js';
 import { getIO } from '../config/socket.js';
 
-// @desc    Request a ride
-// @route   POST /api/rides/request
-// @access  Private (All users - drivers can also be passengers)
+/**
+ * @fileoverview Ride Request Management Controller
+ * @description Manages the passenger-driver interaction for ride requests including
+ * requesting rides, approving/rejecting requests, tracking pickup/dropoff status.
+ * Implements real-time Socket.io notifications for all state changes.
+ * @module controllers/rideController
+ */
+
+/**
+ * Request a Ride
+ * 
+ * @description Creates a new ride request from passenger to join a scheduled trip.
+ * Validates trip availability, prevents duplicate requests, and notifies driver via Socket.io.
+ * 
+ * @route POST /api/rides/request
+ * @access Private (Authenticated users - drivers can also be passengers)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated user (passenger)
+ * @param {Object} req.body - Request body
+ * @param {string} req.body.tripId - MongoDB ObjectId of the trip to request
+ * 
+ * @returns {Object} 201 - Ride request created successfully
+ * @returns {Object} 400 - Invalid request (e.g., requesting own trip, duplicate request)
+ * @returns {Object} 401 - Authentication error
+ * @returns {Object} 404 - Trip not found
+ * 
+ * @example
+ * // Request
+ * POST /api/rides/request
+ * Authorization: Bearer <jwt_token>
+ * {
+ *   "tripId": "507f1f77bcf86cd799439011"
+ * }
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "_id": "507f1f77bcf86cd799439012",
+ *     "passengerId": { "_id": "...", "name": "John Doe", "email": "..." },
+ *     "tripId": { ... trip details ... },
+ *     "status": "PENDING",
+ *     "createdAt": "2026-02-12T10:30:00.000Z"
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Validates user authentication
+ * - Checks trip exists and is SCHEDULED
+ * - Prevents drivers from requesting their own trips
+ * - Checks for existing PENDING request for same trip
+ * - Validates at least 1 seat available
+ * - Creates ride request with PENDING status
+ * - Emits Socket.io 'new-ride-request' event to driver
+ * - Driver receives real-time notification to approve/reject
+ * 
+ * @realtime Socket.io Events Emitted:
+ * - Event: 'new-ride-request'
+ * - Room: `user-${driverId}`
+ * - Payload: { rideRequest, message, timestamp }
+ */
 export const requestRide = async (req, res) => {
   try {
     const { tripId } = req.body;
@@ -108,9 +167,62 @@ export const requestRide = async (req, res) => {
   }
 };
 
-// @desc    Approve a ride request
-// @route   POST /api/rides/:id/approve
-// @access  Private (Drivers only)
+/**
+ * Approve Ride Request
+ * 
+ * @description Driver approves a passenger's ride request. Atomically decrements available
+ * seats and updates request status. Notifies passenger and all users via Socket.io.
+ * 
+ * @route POST /api/rides/:id/approve
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of ride request to approve
+ * 
+ * @returns {Object} 200 - Ride request approved successfully
+ * @returns {Object} 400 - Cannot approve (wrong status, no seats available)
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Ride request not found
+ * 
+ * @example
+ * // Request
+ * POST /api/rides/507f1f77bcf86cd799439012/approve
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "_id": "507f1f77bcf86cd799439012",
+ *     "status": "APPROVED",
+ *     "passengerId": { ... },
+ *     "tripId": { ... }
+ *   },
+ *   "trip": {
+ *     "availableSeats": 3
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Validates driver owns the trip
+ * - Only PENDING requests can be approved
+ * - Atomically decrements trip.availableSeats (prevents race conditions)
+ * - Fails if no seats available (atomic operation ensures consistency)
+ * - Updates request status to APPROVED
+ * - Emits Socket.io events to passenger and all users
+ * - Passenger can now be picked up by driver
+ * 
+ * @atomic This operation uses findOneAndUpdate with $inc for atomic seat decrement
+ * 
+ * @realtime Socket.io Events Emitted:
+ * - Event: 'ride-approved-notification'
+ *   - Room: `user-${passengerId}`
+ *   - Payload: { rideId, tripId, message, timestamp }
+ * - Event: 'trip-seats-updated'
+ *   - Room: broadcast to all
+ *   - Payload: { tripId, availableSeats, timestamp }
+ */
 export const approveRide = async (req, res) => {
   try {
     const rideRequestId = req.params.id;
@@ -204,9 +316,53 @@ export const approveRide = async (req, res) => {
   }
 };
 
-// @desc    Reject a ride request
-// @route   POST /api/rides/:id/reject
-// @access  Private (Drivers only)
+/**
+ * Reject Ride Request
+ * 
+ * @description Driver rejects a passenger's ride request. Does not affect available seats.
+ * Notifies passenger via Socket.io.
+ * 
+ * @route POST /api/rides/:id/reject
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of ride request to reject
+ * 
+ * @returns {Object} 200 - Ride request rejected successfully
+ * @returns {Object} 400 - Cannot reject (wrong status)
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Ride request not found
+ * 
+ * @example
+ * // Request
+ * POST /api/rides/507f1f77bcf86cd799439012/reject
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "data": {
+ *     "_id": "507f1f77bcf86cd799439012",
+ *     "status": "REJECTED",
+ *     "passengerId": { ... },
+ *     "tripId": { ... }
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Validates driver owns the trip
+ * - Only PENDING requests can be rejected
+ * - Updates request status to REJECTED
+ * - Does NOT affect trip.availableSeats (no seat was reserved)
+ * - Emits Socket.io event to passenger
+ * - Passenger can request other trips
+ * 
+ * @realtime Socket.io Events Emitted:
+ * - Event: 'ride-rejected-notification'
+ *   - Room: `user-${passengerId}`
+ *   - Payload: { rideId, tripId, message, timestamp }
+ */
 export const rejectRide = async (req, res) => {
   try {
     const rideRequestId = req.params.id;
@@ -273,9 +429,52 @@ export const rejectRide = async (req, res) => {
   }
 };
 
-// @desc    Get ride requests for a specific trip
-// @route   GET /api/rides/trip/:tripId
-// @access  Private (Drivers only)
+/**
+ * Get Ride Requests for Trip
+ * 
+ * @description Retrieves all ride requests (pending, approved, rejected) for a specific trip.
+ * Only the trip driver can view requests for their trip.
+ * 
+ * @route GET /api/rides/trip/:tripId
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.tripId - MongoDB ObjectId of the trip
+ * 
+ * @returns {Object} 200 - List of ride requests
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Trip not found
+ * 
+ * @example
+ * // Request
+ * GET /api/rides/trip/507f1f77bcf86cd799439011
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "count": 3,
+ *   "rides": [
+ *     {
+ *       "_id": "...",
+ *       "passengerId": { "name": "John Doe", "email": "..." },
+ *       "tripId": { "source": "...", "destination": "...", ... },
+ *       "status": "PENDING",
+ *       "createdAt": "2026-02-12T10:30:00.000Z"
+ *     },
+ *     ...
+ *   ]
+ * }
+ * 
+ * @businessLogic
+ * - Validates trip exists
+ * - Verifies user is the trip driver
+ * - Returns all requests sorted by creation date (newest first)
+ * - Populates passenger info (name, email)
+ * - Populates trip details (source, destination, time, vehicle)
+ * - Driver uses this to manage incoming ride requests
+ */
 export const getRideRequestsForTrip = async (req, res) => {
   try {
     const { tripId } = req.params;
@@ -319,9 +518,56 @@ export const getRideRequestsForTrip = async (req, res) => {
   }
 };
 
-// @desc    Get passenger's rides
-// @route   GET /api/rides/passenger/rides
-// @access  Private
+/**
+ * Get Passenger's Rides
+ * 
+ * @description Retrieves all ride requests made by the authenticated passenger across
+ * all trips, including trip and driver details.
+ * 
+ * @route GET /api/rides/passenger/rides
+ * @access Private (Authenticated users)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated passenger
+ * 
+ * @returns {Object} 200 - List of passenger's ride requests
+ * 
+ * @example
+ * // Request
+ * GET /api/rides/passenger/rides
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "count": 5,
+ *   "rides": [
+ *     {
+ *       "_id": "...",
+ *       "passengerId": { "name": "John Doe", "email": "..." },
+ *       "tripId": {
+ *         "source": "Downtown",
+ *         "destination": "Airport",
+ *         "scheduledTime": "2026-02-12T15:00:00.000Z",
+ *         "driverId": { "name": "Jane Smith", "email": "..." },
+ *         ...
+ *       },
+ *       "status": "APPROVED",
+ *       "pickupStatus": "PICKED_UP",
+ *       "createdAt": "2026-02-12T10:30:00.000Z"
+ *     },
+ *     ...
+ *   ]
+ * }
+ * 
+ * @businessLogic
+ * - Returns all ride requests for authenticated user
+ * - Sorted by creation date (newest first)
+ * - Populates full trip details including driver info
+ * - Shows status (PENDING/APPROVED/REJECTED)
+ * - Shows pickup status if applicable (PICKED_UP/DROPPED_OFF)
+ * - Used by passenger dashboard to track ride history
+ */
 export const getPassengerRides = async (req, res) => {
   try {
     const passengerId = req.user.userId;
@@ -357,9 +603,60 @@ export const getPassengerRides = async (req, res) => {
   }
 };
 
-// @desc    Mark passenger as picked up
-// @route   POST /api/rides/:id/pickup
-// @access  Private (Driver only)
+/**
+ * Mark Passenger as Picked Up
+ * 
+ * @description Driver marks an approved passenger as picked up. Records timestamp and
+ * updates pickup status. Notifies passenger and trip room via Socket.io.
+ * 
+ * @route POST /api/rides/:id/pickup
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of ride request
+ * 
+ * @returns {Object} 200 - Passenger marked as picked up
+ * @returns {Object} 400 - Invalid operation (not approved, already picked up)
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Ride request not found
+ * 
+ * @example
+ * // Request
+ * POST /api/rides/507f1f77bcf86cd799439012/pickup
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "message": "Passenger marked as picked up",
+ *   "data": {
+ *     "_id": "507f1f77bcf86cd799439012",
+ *     "status": "APPROVED",
+ *     "pickupStatus": "PICKED_UP",
+ *     "pickedUpAt": "2026-02-12T15:05:00.000Z",
+ *     ...
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Validates driver owns the trip
+ * - Only APPROVED passengers can be picked up
+ * - Prevents duplicate pickup (already PICKED_UP)
+ * - Sets pickupStatus to PICKED_UP
+ * - Records pickedUpAt timestamp
+ * - Emits Socket.io events to passenger and trip room
+ * - Enables tracking of passenger journey
+ * - Required before marking as dropped off
+ * 
+ * @realtime Socket.io Events Emitted:
+ * - Event: 'pickup-status-update'
+ *   - Room: `user-${passengerId}`
+ *   - Payload: { rideId, pickupStatus, message, timestamp }
+ * - Event: 'passengerPickup'
+ *   - Room: `trip:${tripId}`
+ *   - Payload: { rideId, passengerId, passengerName, pickupStatus }
+ */
 export const markAsPickedUp = async (req, res) => {
   try {
     const rideRequestId = req.params.id;
@@ -441,9 +738,61 @@ export const markAsPickedUp = async (req, res) => {
   }
 };
 
-// @desc    Mark passenger as dropped off
-// @route   POST /api/rides/:id/dropoff
-// @access  Private (Driver only)
+/**
+ * Mark Passenger as Dropped Off
+ * 
+ * @description Driver marks a picked-up passenger as dropped off at destination.
+ * Records timestamp and completes pickup journey. Notifies passenger and trip room.
+ * 
+ * @route POST /api/rides/:id/dropoff
+ * @access Private (Drivers only - must be the trip owner)
+ * 
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.userId - MongoDB ObjectId of authenticated driver
+ * @param {string} req.params.id - MongoDB ObjectId of ride request
+ * 
+ * @returns {Object} 200 - Passenger marked as dropped off
+ * @returns {Object} 400 - Invalid operation (not approved, not picked up yet)
+ * @returns {Object} 403 - Not authorized (not the trip driver)
+ * @returns {Object} 404 - Ride request not found
+ * 
+ * @example
+ * // Request
+ * POST /api/rides/507f1f77bcf86cd799439012/dropoff
+ * Authorization: Bearer <jwt_token>
+ * 
+ * // Response
+ * {
+ *   "success": true,
+ *   "message": "Passenger marked as dropped off",
+ *   "data": {
+ *     "_id": "507f1f77bcf86cd799439012",
+ *     "status": "APPROVED",
+ *     "pickupStatus": "DROPPED_OFF",
+ *     "pickedUpAt": "2026-02-12T15:05:00.000Z",
+ *     "droppedOffAt": "2026-02-12T15:45:00.000Z",
+ *     ...
+ *   }
+ * }
+ * 
+ * @businessLogic
+ * - Validates driver owns the trip
+ * - Only APPROVED passengers can be dropped off
+ * - Requires passenger to be PICKED_UP first (enforces journey flow)
+ * - Sets pickupStatus to DROPPED_OFF
+ * - Records droppedOffAt timestamp
+ * - Emits Socket.io events to passenger and trip room
+ * - Completes the passenger journey for this ride
+ * - Used for trip history and analytics
+ * 
+ * @realtime Socket.io Events Emitted:
+ * - Event: 'pickup-status-update'
+ *   - Room: `user-${passengerId}`
+ *   - Payload: { rideId, pickupStatus, message, timestamp }
+ * - Event: 'passengerDropoff'
+ *   - Room: `trip:${tripId}`
+ *   - Payload: { rideId, passengerId, passengerName, pickupStatus }
+ */
 export const markAsDroppedOff = async (req, res) => {
   try {
     const rideRequestId = req.params.id;

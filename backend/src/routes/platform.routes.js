@@ -6,8 +6,24 @@ import {
   createOrgAdmin,
 } from "../controllers/platform.controller.js";
 
+/**
+ * @fileoverview Platform Administration Routes
+ * @description Defines super-admin level endpoints for platform management including
+ * organization and organization admin creation. Highest privilege level.
+ * @module routes/platform.routes
+ */
+
 const router = express.Router();
 
+/**
+ * @api {post} /api/platform/organizations Create Organization
+ * @apiDescription Create a new organization entity
+ * @apiPermission platform-admin
+ * @apiHeader {String} Authorization Bearer JWT token
+ * @apiBody {String} name Organization name
+ * @apiBody {String} orgCode Unique organization code
+ * @apiNote Requires PLATFORM_ADMIN role - super admin only
+ */
 router.post(
   "/organizations",
   requireAuth,
@@ -15,6 +31,17 @@ router.post(
   createOrganization
 );
 
+/**
+ * @api {post} /api/platform/org-admins Create Organization Admin
+ * @apiDescription Create an organization admin user
+ * @apiPermission platform-admin
+ * @apiHeader {String} Authorization Bearer JWT token
+ * @apiBody {String} email Admin email address
+ * @apiBody {String} phone Admin phone number
+ * @apiBody {String} password Admin password
+ * @apiBody {String} orgCode Organization code to associate admin with
+ * @apiNote Requires PLATFORM_ADMIN role - super admin only
+ */
 router.post(
   "/org-admins",
   requireAuth,
