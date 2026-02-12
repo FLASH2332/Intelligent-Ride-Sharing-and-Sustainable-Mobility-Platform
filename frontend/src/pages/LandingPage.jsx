@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom';
 import { Leaf, Users, TrendingUp, Shield, Car, Sprout } from 'lucide-react';
-import Header from '../components/Header';
 import FeatureCard from '../components/FeatureCard';
 import StatCard from '../components/StatCard';
 
@@ -9,7 +8,6 @@ const LandingPage = () => {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <Header />
 
       {/* Hero Section */}
       <section className="pt-32 pb-20 px-6">
@@ -119,19 +117,6 @@ const LandingPage = () => {
           </button>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="py-12 px-6 bg-stone-900 text-stone-400">
-        <div className="max-w-7xl mx-auto text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <Leaf className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-lg font-semibold text-white">GreenCommute</span>
-          </div>
-          <p className="text-sm">© 2026 GreenCommute. Building a sustainable future, one ride at a time.</p>
-        </div>
-      </footer>
     </div>
   );
 };
