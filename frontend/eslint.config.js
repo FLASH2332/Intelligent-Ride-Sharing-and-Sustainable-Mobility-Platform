@@ -36,4 +36,24 @@ export default [
       'react/prop-types': 'off',
     },
   },
+  // Configuration for test files
+  {
+    files: ['**/*.test.{js,jsx}'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        global: 'readonly',
+      },
+    },
+  },
+  // Configuration for config files
+  {
+    files: ['**/*.config.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+    },
+  },
 ];

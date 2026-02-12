@@ -140,7 +140,7 @@ const LiveTripTracking = ({ tripId, userRole }) => {
         const data = await response.json();
         setTripData(data.trip);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to start trip');
     }
   };
@@ -158,7 +158,7 @@ const LiveTripTracking = ({ tripId, userRole }) => {
         const data = await response.json();
         setTripData(data.trip);
       }
-    } catch (err) {
+    } catch {
       setError('Failed to end trip');
     }
   };

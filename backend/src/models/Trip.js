@@ -117,7 +117,7 @@ const tripSchema = new mongoose.Schema({
         }
         return true;
       },
-      message: function(_props) {
+      message: function() {
         if (this.vehicleType === 'CAR') {
           return 'CAR can have maximum 7 seats';
         } else if (this.vehicleType === 'BIKE') {

@@ -164,7 +164,7 @@ export const setupTrackingSocket = (io) => {
       socket.userId = decoded.id;
       socket.userRole = decoded.role;
       next();
-    } catch (error) {
+    } catch {
       next(new Error('Invalid token'));
     }
   });
@@ -191,7 +191,7 @@ export const setupTrackingSocket = (io) => {
           status: trip.status,
           currentLocation: trip.currentLocation
         });
-      } catch (error) {
+      } catch {
         socket.emit('error', { message: 'Failed to join trip' });
       }
     });

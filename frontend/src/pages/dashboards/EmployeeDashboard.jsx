@@ -340,7 +340,7 @@ const EmployeeDashboard = () => {
           <p className="text-stone-600">Loading your rides...</p>
         ) : passengerRides.length === 0 ? (
           <div className="bg-white border rounded-xl shadow-sm p-6 text-center">
-            <p className="text-stone-600">You haven't requested any rides yet.</p>
+            <p className="text-stone-600">You haven&apos;t requested any rides yet.</p>
             <button
               onClick={() => navigate("/passenger/search")}
               className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"

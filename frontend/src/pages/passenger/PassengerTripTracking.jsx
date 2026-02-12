@@ -12,7 +12,6 @@ const PassengerTripTracking = () => {
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
     fetchRideDetails();
@@ -46,8 +45,6 @@ const PassengerTripTracking = () => {
         setTrip(prev => ({ ...prev, status: data.status }));
       }
     });
-
-    setSocket(newSocket);
 
     return () => {
       if (newSocket) {

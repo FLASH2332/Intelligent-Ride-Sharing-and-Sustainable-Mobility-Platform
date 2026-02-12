@@ -104,6 +104,9 @@ const RideRequests = () => {
     }
   };
 
+  // Trip status management functions - Required for driver to control trip lifecycle
+  // TODO: Wire these up to UI buttons in the trip cards
+  // eslint-disable-next-line no-unused-vars
   const handleStartTrip = async (tripId) => {
     try {
       setError('');
@@ -121,6 +124,7 @@ const RideRequests = () => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleEndTrip = async (tripId) => {
     try {
       setError('');
@@ -138,10 +142,13 @@ const RideRequests = () => {
     }
   };
 
+  // Helper functions to determine if trip status actions are available
+  // eslint-disable-next-line no-unused-vars
   const canStartTrip = (trip) => {
     return trip.status === 'SCHEDULED';
   };
 
+  // eslint-disable-next-line no-unused-vars
   const canEndTrip = (trip) => {
     return trip.status === 'IN_PROGRESS';
   };

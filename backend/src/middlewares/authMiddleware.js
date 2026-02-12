@@ -6,7 +6,6 @@
  */
 
 import jwt from "jsonwebtoken";
-import User from "../models/User.js";
 
 /**
  * Protect Middleware (Epic-2 Compatible)

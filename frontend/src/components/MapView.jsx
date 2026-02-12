@@ -3,7 +3,6 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import PropTypes from 'prop-types';
-import { getRoute, formatDistance, formatDuration } from '../services/routingService';
 
 // Fix for default marker icons in React-Leaflet
 delete L.Icon.Default.prototype._getIconUrl;
@@ -79,8 +78,6 @@ MapBounds.propTypes = {
 // Hook to fetch and display route from OSRM
 const RouteLayer = ({ sourceLocation, destinationLocation, waypoints = [] }) => {
   const [routeCoordinates, setRouteCoordinates] = useState([]);
-  const [distance, setDistance] = useState(null);
-  const [duration, setDuration] = useState(null);
 
   useEffect(() => {
     const fetchRoute = async () => {
@@ -106,8 +103,6 @@ const RouteLayer = ({ sourceLocation, destinationLocation, waypoints = [] }) => 
             // Convert [lng, lat] to [lat, lng] for Leaflet
             const coordinates = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
             setRouteCoordinates(coordinates);
-            setDistance((route.distance / 1000).toFixed(1)); // Convert to km
-            setDuration(Math.round(route.duration / 60)); // Convert to minutes
           }
         }
       } catch (error) {
