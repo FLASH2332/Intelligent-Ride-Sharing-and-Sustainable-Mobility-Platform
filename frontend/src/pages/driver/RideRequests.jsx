@@ -104,6 +104,52 @@ const RideRequests = () => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
+  const handleStartTrip = async (tripId) => {
+    try {
+      setError('');
+      setSuccessMessage('');
+      
+      await tripService.startTrip(tripId);
+      setSuccessMessage('Trip started successfully!');
+      
+      // Refresh trips
+      await fetchDriverTrips();
+      
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to start trip');
+    }
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const handleEndTrip = async (tripId) => {
+    try {
+      setError('');
+      setSuccessMessage('');
+      
+      await tripService.endTrip(tripId);
+      setSuccessMessage('Trip ended successfully!');
+      
+      // Refresh trips
+      await fetchDriverTrips();
+      
+      setTimeout(() => setSuccessMessage(''), 3000);
+    } catch (err) {
+      setError(err.message || 'Failed to end trip');
+    }
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const canStartTrip = (trip) => {
+    return trip.status === 'SCHEDULED';
+  };
+
+  // eslint-disable-next-line no-unused-vars
+  const canEndTrip = (trip) => {
+    return trip.status === 'IN_PROGRESS';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
