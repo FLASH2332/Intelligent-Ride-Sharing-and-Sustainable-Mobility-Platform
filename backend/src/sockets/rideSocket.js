@@ -120,7 +120,7 @@ export const setupRideSocket = (io) => {
       socket.userId = decoded.userId;
       socket.userRole = decoded.role;
       next();
-    } catch (err) {
+    } catch {
       next(new Error('Invalid token'));
     }
   });

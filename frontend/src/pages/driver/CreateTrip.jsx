@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tripService } from '../../services/tripService';
-import InputField from '../../components/InputField';
 import LocationAutocomplete from '../../components/LocationAutocomplete';
 import MapView from '../../components/MapView';
 

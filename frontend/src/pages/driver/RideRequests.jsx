@@ -104,48 +104,6 @@ const RideRequests = () => {
     }
   };
 
-  const handleStartTrip = async (tripId) => {
-    try {
-      setError('');
-      setSuccessMessage('');
-      
-      await tripService.startTrip(tripId);
-      setSuccessMessage('Trip started successfully!');
-      
-      // Refresh trips
-      await fetchDriverTrips();
-      
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to start trip');
-    }
-  };
-
-  const handleEndTrip = async (tripId) => {
-    try {
-      setError('');
-      setSuccessMessage('');
-      
-      await tripService.endTrip(tripId);
-      setSuccessMessage('Trip ended successfully!');
-      
-      // Refresh trips
-      await fetchDriverTrips();
-      
-      setTimeout(() => setSuccessMessage(''), 3000);
-    } catch (err) {
-      setError(err.message || 'Failed to end trip');
-    }
-  };
-
-  const canStartTrip = (trip) => {
-    return trip.status === 'SCHEDULED';
-  };
-
-  const canEndTrip = (trip) => {
-    return trip.status === 'IN_PROGRESS';
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

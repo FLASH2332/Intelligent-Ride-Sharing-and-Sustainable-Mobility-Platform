@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { tripService } from '../../services/tripService';
 import { rideService } from '../../services/rideService';
 import TripCard from '../../components/TripCard';
-import InputField from '../../components/InputField';
 import LocationAutocomplete from '../../components/LocationAutocomplete';
 import MapView from '../../components/MapView';
 import { io } from 'socket.io-client';
@@ -152,14 +151,6 @@ const SearchTrips = () => {
     } catch (err) {
       setError(err.message || 'Failed to request ride');
     }
-  };
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setSearchParams({
-      ...searchParams,
-      [name]: value,
-    });
   };
 
   const handleSourceChange = (locationData) => {

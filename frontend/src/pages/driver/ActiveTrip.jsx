@@ -308,7 +308,7 @@ const handlePickup = async (rideId) => {
               Passengers ({approvedPassengers.length})
             </h3>
             <div className="space-y-3">
-              {approvedPassengers.map((ride, index) => (
+              {approvedPassengers.map((ride) => (
                 <div key={ride._id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3 flex-1">
