@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { rideService } from '../../services/rideService';
 import { tripService } from '../../services/tripService';
 import LiveTrackingMap from '../../components/LiveTrackingMap';
 import { io } from 'socket.io-client';
+import calculateETA from '../../services/etaService';
 
 const PassengerTripTracking = () => {
   const { rideId } = useParams();
@@ -12,6 +13,12 @@ const PassengerTripTracking = () => {
   const [trip, setTrip] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [eta, setEta] = useState(null);
+  const [etaLastUpdated, setEtaLastUpdated] = useState(null);
+  const tripRef = useRef(null);
+
+  // Keep tripRef in sync so socket handler always has fresh trip data
+  useEffect(() => { tripRef.current = trip; }, [trip]);
 
   useEffect(() => {
     fetchRideDetails();
@@ -31,6 +38,35 @@ const PassengerTripTracking = () => {
       newSocket.emit('joinTrip', ride.tripId._id);
     });
 
+    newSocket.on('locationUpdate', async (data) => {
+      if (data.tripId !== ride.tripId._id) return;
+
+      // Use server-computed ETA if available
+      if (data.eta) {
+        setEta(data.eta);
+        setEtaLastUpdated(Date.now());
+        return;
+      }
+
+      // Fallback: compute ETA on client from driver location + trip destination
+      const currentTrip = tripRef.current;
+      if (!currentTrip?.destinationLocation) return;
+      const dl = currentTrip.destinationLocation;
+      const dest =
+        typeof dl.lat === 'number'
+          ? { lat: dl.lat, lng: dl.lng }
+          : dl.coordinates?.coordinates?.length === 2
+            ? { lat: dl.coordinates.coordinates[1], lng: dl.coordinates.coordinates[0] }
+            : null;
+      if (!dest) return;
+      const driverLoc = { lat: data.location.lat, lng: data.location.lng };
+      const result = await calculateETA(driverLoc, dest);
+      if (result) {
+        setEta(result);
+        setEtaLastUpdated(Date.now());
+      }
+    });
+
     newSocket.on('pickup-status-update', (data) => {
       if (data.rideId === rideId) {
         setRide(prev => ({
@@ -43,6 +79,10 @@ const PassengerTripTracking = () => {
     newSocket.on('tripStatusUpdate', (data) => {
       if (data.tripId === ride.tripId._id) {
         setTrip(prev => ({ ...prev, status: data.status }));
+        // Clear ETA when trip is no longer active
+        if (data.status !== 'STARTED') {
+          setEta(null);
+        }
       }
     });
 
@@ -60,14 +100,14 @@ const PassengerTripTracking = () => {
       // Get passenger's rides and find this one
       const data = await rideService.getPassengerRides();
       const currentRide = data.rides.find(r => r._id === rideId);
-      
+
       if (!currentRide) {
         setError('Ride not found');
         return;
       }
 
       setRide(currentRide);
-      
+
       // Fetch full trip details
       if (currentRide.tripId?._id) {
         const tripData = await tripService.getTripById(currentRide.tripId._id);
@@ -85,9 +125,9 @@ const PassengerTripTracking = () => {
 
     // Trip not started yet
     if (trip.status === 'SCHEDULED') {
-      return { 
-        text: 'Trip Scheduled', 
-        color: 'blue', 
+      return {
+        text: 'Trip Scheduled',
+        color: 'blue',
         icon: '📅',
         message: 'Waiting for driver to start the trip'
       };
@@ -96,23 +136,23 @@ const PassengerTripTracking = () => {
     // Trip started
     if (trip.status === 'STARTED') {
       if (ride.pickupStatus === 'DROPPED_OFF') {
-        return { 
-          text: 'Dropped Off', 
-          color: 'gray', 
+        return {
+          text: 'Dropped Off',
+          color: 'gray',
           icon: '✓',
           message: 'You have reached your destination'
         };
       } else if (ride.pickupStatus === 'PICKED_UP') {
-        return { 
-          text: 'On Board', 
-          color: 'green', 
+        return {
+          text: 'On Board',
+          color: 'green',
           icon: '🚗',
           message: 'You are on the way to your destination'
         };
       } else {
-        return { 
-          text: 'Driver On the Way', 
-          color: 'amber', 
+        return {
+          text: 'Driver On the Way',
+          color: 'amber',
           icon: '⏳',
           message: 'Driver is coming to pick you up'
         };
@@ -121,9 +161,9 @@ const PassengerTripTracking = () => {
 
     // Trip completed
     if (trip.status === 'COMPLETED') {
-      return { 
-        text: 'Trip Completed', 
-        color: 'green', 
+      return {
+        text: 'Trip Completed',
+        color: 'green',
         icon: '✓',
         message: 'Thank you for riding with us!'
       };
@@ -131,9 +171,9 @@ const PassengerTripTracking = () => {
 
     // Trip cancelled
     if (trip.status === 'CANCELLED') {
-      return { 
-        text: 'Trip Cancelled', 
-        color: 'red', 
+      return {
+        text: 'Trip Cancelled',
+        color: 'red',
         icon: '✕',
         message: 'This trip has been cancelled'
       };
@@ -200,6 +240,66 @@ const PassengerTripTracking = () => {
               {statusInfo.text}
             </h2>
             <p className="text-gray-600 text-lg">{statusInfo.message}</p>
+
+            {/* ── Inline ETA badge (only when trip is active and we have data) ── */}
+            {trip.status === 'STARTED' && eta && (
+              <div
+                style={{
+                  marginTop: '20px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '16px',
+                  background: 'linear-gradient(135deg, #1e3a5f 0%, #0f2040 100%)',
+                  borderRadius: '14px',
+                  padding: '14px 24px',
+                  color: '#fff',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
+                }}
+              >
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '11px', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Arrives in</div>
+                  <div style={{ fontSize: '26px', fontWeight: 800, color: '#63b3ed', lineHeight: 1 }}>
+                    {eta.etaText}
+                  </div>
+                  {eta.fallback && (
+                    <div style={{ fontSize: '10px', opacity: 0.45 }}>≈ estimated</div>
+                  )}
+                </div>
+                <div style={{ width: '1px', height: '40px', background: 'rgba(255,255,255,0.15)' }} />
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '11px', opacity: 0.65, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Remaining</div>
+                  <div style={{ fontSize: '20px', fontWeight: 700, color: '#9ae6b4', lineHeight: 1 }}>
+                    {eta.distanceText}
+                  </div>
+                </div>
+                {etaLastUpdated && (
+                  <div style={{ fontSize: '10px', opacity: 0.4, marginLeft: '4px', alignSelf: 'flex-end' }}>
+                    · refreshes 60s
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Waiting for ETA */}
+            {trip.status === 'STARTED' && !eta && (
+              <div
+                style={{
+                  marginTop: '16px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  background: '#f7fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '10px',
+                  padding: '10px 18px',
+                  color: '#718096',
+                  fontSize: '13px',
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>⏳</span>
+                Calculating ETA — waiting for driver location…
+              </div>
+            )}
           </div>
         </div>
 
@@ -268,29 +368,24 @@ const PassengerTripTracking = () => {
           <div className="bg-white rounded-lg shadow-md p-6 mt-6">
             <h3 className="font-semibold text-gray-900 mb-4">Journey Progress</h3>
             <div className="flex items-center justify-between">
-              <div className={`flex flex-col items-center ${
-                ride.pickupStatus !== 'WAITING' ? 'text-green-600' : 'text-gray-400'
-              }`}>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  ride.pickupStatus !== 'WAITING' ? 'bg-green-100' : 'bg-gray-100'
+              <div className={`flex flex-col items-center ${ride.pickupStatus !== 'WAITING' ? 'text-green-600' : 'text-gray-400'
                 }`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${ride.pickupStatus !== 'WAITING' ? 'bg-green-100' : 'bg-gray-100'
+                  }`}>
                   ✓
                 </div>
                 <p className="text-sm mt-2 font-medium">Picked Up</p>
               </div>
               <div className="flex-1 h-1 mx-4 bg-gray-200">
-                <div className={`h-full ${
-                  ride.pickupStatus === 'PICKED_UP' || ride.pickupStatus === 'DROPPED_OFF'
+                <div className={`h-full ${ride.pickupStatus === 'PICKED_UP' || ride.pickupStatus === 'DROPPED_OFF'
                     ? 'bg-green-500'
                     : 'bg-gray-200'
-                }`} style={{ width: ride.pickupStatus === 'PICKED_UP' ? '50%' : ride.pickupStatus === 'DROPPED_OFF' ? '100%' : '0%' }}></div>
+                  }`} style={{ width: ride.pickupStatus === 'PICKED_UP' ? '50%' : ride.pickupStatus === 'DROPPED_OFF' ? '100%' : '0%' }}></div>
               </div>
-              <div className={`flex flex-col items-center ${
-                ride.pickupStatus === 'DROPPED_OFF' ? 'text-green-600' : 'text-gray-400'
-              }`}>
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                  ride.pickupStatus === 'DROPPED_OFF' ? 'bg-green-100' : 'bg-gray-100'
+              <div className={`flex flex-col items-center ${ride.pickupStatus === 'DROPPED_OFF' ? 'text-green-600' : 'text-gray-400'
                 }`}>
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${ride.pickupStatus === 'DROPPED_OFF' ? 'bg-green-100' : 'bg-gray-100'
+                  }`}>
                   ✓
                 </div>
                 <p className="text-sm mt-2 font-medium">Dropped Off</p>

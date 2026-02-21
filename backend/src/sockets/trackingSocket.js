@@ -7,6 +7,7 @@
 
 import Trip from '../models/Trip.js';
 import jwt from 'jsonwebtoken';
+import { calculateETA } from '../services/etaService.js';
 
 /**
  * Setup Tracking Socket Handlers
@@ -226,13 +227,29 @@ export const setupTrackingSocket = (io) => {
         
         await trip.save();
 
-        // Broadcast location to all users in the trip room
+        // ── ETA Calculation ──────────────────────────────────────────────────
+        // Attempt to get accurate ETA from driver's current position to destination
+        let eta = null;
+        try {
+          const destCoords = trip.destinationLocation?.coordinates?.coordinates;
+          if (destCoords && destCoords.length === 2) {
+            // MongoDB stores [lng, lat]; OSRM needs {lat, lng}
+            const destination = { lat: destCoords[1], lng: destCoords[0] };
+            eta = await calculateETA(location, destination);
+          }
+        } catch (etaErr) {
+          console.warn('[ETA] Failed to compute ETA for trip', tripId, etaErr.message);
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
+        // Broadcast location (+ ETA) to all users in the trip room
         io.to(`trip:${tripId}`).emit('locationUpdate', {
           tripId,
           location: {
             lat: location.lat,
             lng: location.lng
           },
+          eta,          // null when calculation not possible
           timestamp: new Date()
         });
 
