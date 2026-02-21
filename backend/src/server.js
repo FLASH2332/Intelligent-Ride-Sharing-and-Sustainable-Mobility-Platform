@@ -28,8 +28,10 @@ const io = new Server(httpServer, {
 setIO(io);
 
 // Setup socket handlers
-setupRideSocket(io);
+// IMPORTANT: trackingSocket MUST be initialized first — it registers the
+// io.use() JWT authentication middleware that all socket connections need.
 setupTrackingSocket(io);
+setupRideSocket(io);
 
 httpServer.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);

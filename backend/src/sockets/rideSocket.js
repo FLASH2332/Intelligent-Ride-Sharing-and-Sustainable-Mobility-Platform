@@ -107,23 +107,9 @@ import jwt from 'jsonwebtoken';
  * ```
  */
 export const setupRideSocket = (io) => {
-  // Socket authentication middleware
-  io.use((socket, next) => {
-    const token = socket.handshake.auth.token;
-    
-    if (!token) {
-      return next(new Error('Authentication error'));
-    }
-
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      socket.userId = decoded.userId;
-      socket.userRole = decoded.role;
-      next();
-    } catch {
-      next(new Error('Invalid token'));
-    }
-  });
+  // NOTE: Authentication middleware is already registered by setupTrackingSocket.
+  // Do NOT call io.use() here again — it runs on the shared io instance and would
+  // apply auth twice, breaking connections.
 
   io.on('connection', (socket) => {
     console.log('User connected:', socket.id, 'User ID:', socket.userId);
@@ -138,8 +124,8 @@ export const setupRideSocket = (io) => {
         return;
       }
 
-      socket.join(`trip-${tripId}`);
-      console.log(`Socket ${socket.id} joined trip room: trip-${tripId}`);
+      socket.join(`trip:${tripId}`);
+      console.log(`Socket ${socket.id} joined trip room: trip:${tripId}`);
       
       socket.emit('trip-joined', { 
         tripId, 
@@ -150,8 +136,8 @@ export const setupRideSocket = (io) => {
     // Leave a trip room
     socket.on('leaveTrip', (tripId) => {
       if (tripId) {
-        socket.leave(`trip-${tripId}`);
-        console.log(`Socket ${socket.id} left trip room: trip-${tripId}`);
+        socket.leave(`trip:${tripId}`);
+        console.log(`Socket ${socket.id} left trip room: trip:${tripId}`);
       }
     });
 
@@ -172,7 +158,7 @@ export const setupRideSocket = (io) => {
           await trip.save();
 
           // Broadcast location update to all passengers in the trip room
-          io.to(`trip-${tripId}`).emit('driverLocationUpdate', location);
+          io.to(`trip:${tripId}`).emit('driverLocationUpdate', location);
           console.log(`Driver location updated for trip ${tripId}`);
         }
       } catch (error) {
@@ -191,7 +177,7 @@ export const setupRideSocket = (io) => {
       }
 
       // Broadcast to all users in the trip room
-      io.to(`trip-${tripId}`).emit('tripStatusUpdate', status);
+      io.to(`trip:${tripId}`).emit('tripStatusUpdate', status);
       console.log(`Trip ${tripId} status changed to ${status}`);
     });
 
@@ -204,8 +190,8 @@ export const setupRideSocket = (io) => {
         return;
       }
 
-      socket.join(`trip-${tripId}`);
-      console.log(`User ${userId || socket.id} joined trip room: trip-${tripId}`);
+      socket.join(`trip:${tripId}`);
+      console.log(`User ${userId || socket.id} joined trip room: trip:${tripId}`);
       
       socket.emit('trip-joined', { 
         tripId, 
@@ -228,7 +214,7 @@ export const setupRideSocket = (io) => {
         return;
       }
 
-      socket.to(`trip-${tripId}`).emit('driver-location', {
+      socket.to(`trip:${tripId}`).emit('driver-location', {
         tripId,
         location: {
           latitude,
