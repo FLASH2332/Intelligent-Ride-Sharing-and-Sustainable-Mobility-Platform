@@ -6,7 +6,6 @@
  */
 
 import Trip from '../models/Trip.js';
-import jwt from 'jsonwebtoken';
 
 /**
  * Setup Ride Socket Handlers

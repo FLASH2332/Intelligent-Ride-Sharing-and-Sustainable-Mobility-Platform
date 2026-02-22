@@ -15,13 +15,16 @@ import calculateETA from '../services/etaService';
 
 // ─── ETA display helper ──────────────────────────────────────────────────────
 const ETACard = ({ eta, lastUpdated, userRole }) => {
-  if (userRole === 'driver') return null;   // drivers don't need the ETA card
-  if (!eta) return null;
+  const [freshness, setFreshness] = useState(null);
 
-  const freshness =
-    lastUpdated
-      ? Math.floor((Date.now() - lastUpdated) / 1000)
-      : null;
+  useEffect(() => {
+    if (!lastUpdated) return;
+    const id = setInterval(() => setFreshness(Math.floor((Date.now() - lastUpdated) / 1000)), 1000);
+    return () => clearInterval(id);
+  }, [lastUpdated]);
+
+  if (userRole === 'driver') return null;
+  if (!eta) return null;
 
   return (
     <div

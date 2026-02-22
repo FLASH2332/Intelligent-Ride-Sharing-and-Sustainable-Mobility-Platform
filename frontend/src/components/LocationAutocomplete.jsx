@@ -13,6 +13,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder, label, required })
     if (value !== inputValue) {
       setInputValue(value || '');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   // Close suggestions when clicking outside
@@ -116,7 +117,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder, label, required })
         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
         autoComplete="off"
       />
-      
+
       {/* Loading indicator */}
       {isLoading && (
         <div className="absolute right-3 top-[42px] transform -translate-y-1/2">
@@ -157,7 +158,7 @@ const LocationAutocomplete = ({ value, onChange, placeholder, label, required })
       )}
 
       <p className="text-xs text-gray-500 mt-1">
-        {inputValue.length < 3 
+        {inputValue.length < 3
           ? 'Type at least 3 characters to search locations'
           : 'Select from suggestions or continue typing'
         }

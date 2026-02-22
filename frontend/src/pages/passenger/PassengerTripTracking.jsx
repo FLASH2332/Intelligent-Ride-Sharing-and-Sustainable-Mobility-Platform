@@ -22,6 +22,7 @@ const PassengerTripTracking = () => {
 
   useEffect(() => {
     fetchRideDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rideId]);
 
   // Setup socket connection for real-time updates
@@ -378,8 +379,8 @@ const PassengerTripTracking = () => {
               </div>
               <div className="flex-1 h-1 mx-4 bg-gray-200">
                 <div className={`h-full ${ride.pickupStatus === 'PICKED_UP' || ride.pickupStatus === 'DROPPED_OFF'
-                    ? 'bg-green-500'
-                    : 'bg-gray-200'
+                  ? 'bg-green-500'
+                  : 'bg-gray-200'
                   }`} style={{ width: ride.pickupStatus === 'PICKED_UP' ? '50%' : ride.pickupStatus === 'DROPPED_OFF' ? '100%' : '0%' }}></div>
               </div>
               <div className={`flex flex-col items-center ${ride.pickupStatus === 'DROPPED_OFF' ? 'text-green-600' : 'text-gray-400'

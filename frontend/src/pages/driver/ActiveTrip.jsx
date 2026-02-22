@@ -12,7 +12,7 @@ const ActiveTrip = () => {
   const [error, setError] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [pickupLoading, setPickupLoading] = useState({});
-  
+
   // Get user from localStorage - try multiple keys
   const getUserData = () => {
     try {
@@ -21,25 +21,26 @@ const ActiveTrip = () => {
       if (userStr && userStr !== '{}') {
         return JSON.parse(userStr);
       }
-      
+
       // Try decoding JWT token
       const token = localStorage.getItem('authToken');
       if (token) {
         const payload = JSON.parse(atob(token.split('.')[1]));
         return payload;
       }
-      
+
       return {};
     } catch (err) {
       console.error('Error getting user data:', err);
       return {};
     }
   };
-  
+
   const user = getUserData();
 
   useEffect(() => {
     fetchTripDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tripId]);
 
   const fetchTripDetails = async () => {
@@ -77,7 +78,7 @@ const ActiveTrip = () => {
       setError('');
       await tripService.completeTrip(tripId);
       await fetchTripDetails(); // Refresh trip data
-      
+
       // Redirect after 2 seconds
       setTimeout(() => {
         navigate('/driver/requests');
@@ -98,7 +99,7 @@ const ActiveTrip = () => {
       setActionLoading(true);
       setError('');
       await tripService.cancelTrip(tripId);
-      
+
       // Redirect to driver dashboard
       setTimeout(() => {
         navigate('/driver/requests');
@@ -109,7 +110,7 @@ const ActiveTrip = () => {
       setActionLoading(false);
     }
   };
-const handlePickup = async (rideId) => {
+  const handlePickup = async (rideId) => {
     try {
       setPickupLoading(prev => ({ ...prev, [rideId]: true }));
       setError('');
@@ -135,7 +136,7 @@ const handlePickup = async (rideId) => {
     }
   };
 
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -171,7 +172,7 @@ const handlePickup = async (rideId) => {
   const driverIdString = trip.driverId?._id?.toString() || trip.driverId?.toString();
   const userIdString = user.userId?.toString() || user.id?.toString();
   const isDriver = driverIdString === userIdString;
-  
+
   console.log('Driver Check:', {
     driverIdString,
     userIdString,
@@ -179,7 +180,7 @@ const handlePickup = async (rideId) => {
     tripStatus: trip.status,
     user
   });
-  
+
   const approvedPassengers = (trip.rides || []).filter(ride => ride.status === 'APPROVED');
 
   return (
@@ -254,7 +255,7 @@ const handlePickup = async (rideId) => {
                     {approvedPassengers.length} / {trip.totalSeats}
                   </p>
                 </div>
-                
+
                 {/* Debug Info */}
                 <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs">
                   <p>Debug: isDriver = {isDriver ? 'true' : 'false'}</p>
@@ -262,7 +263,7 @@ const handlePickup = async (rideId) => {
                   <p>User ID: {user.userId || user.id}</p>
                   <p>Status: {trip.status}</p>
                 </div>
-                
+
                 {isDriver && trip.status === 'SCHEDULED' && (
                   <div className="pt-3">
                     <button
@@ -312,20 +313,18 @@ const handlePickup = async (rideId) => {
                 <div key={ride._id} className="border border-gray-200 rounded-lg p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center space-x-3 flex-1">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        ride.pickupStatus === 'DROPPED_OFF' 
-                          ? 'bg-gray-100' 
-                          : ride.pickupStatus === 'PICKED_UP' 
-                          ? 'bg-green-100' 
-                          : 'bg-blue-100'
-                      }`}>
-                        <span className={`font-semibold ${
-                          ride.pickupStatus === 'DROPPED_OFF' 
-                            ? 'text-gray-700' 
-                            : ride.pickupStatus === 'PICKED_UP' 
-                            ? 'text-green-700' 
-                            : 'text-blue-700'
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${ride.pickupStatus === 'DROPPED_OFF'
+                          ? 'bg-gray-100'
+                          : ride.pickupStatus === 'PICKED_UP'
+                            ? 'bg-green-100'
+                            : 'bg-blue-100'
                         }`}>
+                        <span className={`font-semibold ${ride.pickupStatus === 'DROPPED_OFF'
+                            ? 'text-gray-700'
+                            : ride.pickupStatus === 'PICKED_UP'
+                              ? 'text-green-700'
+                              : 'text-blue-700'
+                          }`}>
                           {(ride.passengerId?.name || 'P')[0].toUpperCase()}
                         </span>
                       </div>
@@ -334,16 +333,15 @@ const handlePickup = async (rideId) => {
                           <p className="font-medium text-gray-900">
                             {ride.passengerId?.name || 'Passenger'}
                           </p>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                            ride.pickupStatus === 'DROPPED_OFF'
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ride.pickupStatus === 'DROPPED_OFF'
                               ? 'bg-gray-100 text-gray-700'
                               : ride.pickupStatus === 'PICKED_UP'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-amber-100 text-amber-700'
-                          }`}>
-                            {ride.pickupStatus === 'DROPPED_OFF' ? '✓ Dropped Off' : 
-                             ride.pickupStatus === 'PICKED_UP' ? '✓ On Board' : 
-                             '⏳ Waiting'}
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}>
+                            {ride.pickupStatus === 'DROPPED_OFF' ? '✓ Dropped Off' :
+                              ride.pickupStatus === 'PICKED_UP' ? '✓ On Board' :
+                                '⏳ Waiting'}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600">
@@ -388,9 +386,9 @@ const handlePickup = async (rideId) => {
         )}
 
         {/* Live Tracking Map */}
-        <LiveTrackingMap 
-          trip={trip} 
-          userRole={isDriver ? 'driver' : 'passenger'} 
+        <LiveTrackingMap
+          trip={trip}
+          userRole={isDriver ? 'driver' : 'passenger'}
         />
       </div>
     </div>
