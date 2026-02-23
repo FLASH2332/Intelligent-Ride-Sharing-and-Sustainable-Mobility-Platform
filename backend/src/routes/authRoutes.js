@@ -1,5 +1,5 @@
 import express from "express";
-import { registerEmployee, loginUser, resetPassword, forgotPassword } from "../controllers/authController.js";
+import { registerEmployee, loginUser, resetPassword, forgotPassword, sendOtp } from "../controllers/authController.js";
 import {
     getRegisterOptions,
     verifyRegister,
@@ -17,6 +17,11 @@ import { verifyToken } from "../middlewares/auth.middleware.js";
  */
 
 const router = express.Router();
+
+// ─── Email OTP ────────────────────────────────────────────────────────────────
+
+/** POST /auth/send-otp — Send 6-digit verification code to email */
+router.post("/send-otp", sendOtp);
 
 // ─── Password Auth ────────────────────────────────────────────────────────────
 

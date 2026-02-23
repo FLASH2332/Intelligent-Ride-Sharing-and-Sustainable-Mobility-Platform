@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Leaf, Shield } from "lucide-react";
+import { Leaf, Shield, Mail } from "lucide-react";
 import InputField from "../components/InputField";
-import UserTypeSelector from "../components/UserTypeSelector";
 import { authService } from "../services/authService";
 
 const Signup = () => {
   const navigate = useNavigate();
-  const [userType, setUserType] = useState("employee");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Steps: "form" → "otp"
+  const [step, setStep] = useState("form");
+  const [otpSending, setOtpSending] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: "",
@@ -17,6 +19,8 @@ const Signup = () => {
     phone: "",
     password: "",
     confirmPassword: "",
+    orgCode: "",
+    otp: "",
   });
 
   const handleChange = (e) => {
@@ -37,8 +41,12 @@ const Signup = () => {
       setError("Phone number is required");
       return false;
     }
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
+    if (!formData.orgCode.trim()) {
+      setError("Organization code is required");
+      return false;
+    }
+    if (formData.password.length < 8) {
+      setError("Password must be at least 8 characters");
       return false;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -48,10 +56,47 @@ const Signup = () => {
     return true;
   };
 
+  // Step 1: Send OTP
+  const handleSendOtp = async () => {
+    if (!validateForm()) return;
+
+    setOtpSending(true);
+    setError("");
+
+    try {
+      const res = await fetch("http://localhost:5000/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          orgCode: formData.orgCode,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message);
+
+      setStep("otp");
+    } catch (err) {
+      setError(err.message || "Failed to send verification code");
+    } finally {
+      setOtpSending(false);
+    }
+  };
+
+  // Step 2: Submit registration with OTP
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (step === "form") {
+      handleSendOtp();
+      return;
+    }
+
+    if (!formData.otp.trim()) {
+      setError("Please enter the verification code");
+      return;
+    }
 
     setLoading(true);
     setError("");
@@ -61,12 +106,17 @@ const Signup = () => {
       email: formData.email,
       phone: formData.phone,
       password: formData.password,
-      orgCode: "ORG-AMRITA-001", // TEMP (explained below)
+      orgCode: formData.orgCode,
+      otp: formData.otp,
     });
 
     if (result.success) {
-      navigate("/awaiting-approval");
-
+      // Check if auto-approved or pending
+      if (result.data?.autoApproved) {
+        navigate("/login");
+      } else {
+        navigate("/awaiting-approval");
+      }
     } else {
       setError(result.error || "Signup failed");
     }
@@ -105,60 +155,117 @@ const Signup = () => {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
-            <UserTypeSelector userType={userType} setUserType={setUserType} />
+            {step === "form" && (
+              <>
+                <InputField
+                  label="Organization Code"
+                  type="text"
+                  name="orgCode"
+                  value={formData.orgCode}
+                  onChange={handleChange}
+                  placeholder="e.g. AMRITA2024"
+                  required
+                />
 
-            <InputField
-              label="Full Name"
-              type="text"
-              name="fullName"
-              value={formData.fullName}
-              onChange={handleChange}
-              required
-            />
+                <InputField
+                  label="Full Name"
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleChange}
+                  required
+                />
 
-            <InputField
-              label="Corporate Email"
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-            />
+                <InputField
+                  label="Corporate Email"
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
 
-            <InputField
-              label="Phone Number"
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              required
-            />
+                <InputField
+                  label="Phone Number"
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                />
 
-            <InputField
-              label="Password"
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-            />
+                <InputField
+                  label="Password"
+                  type="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
 
-            <InputField
-              label="Confirm Password"
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-            />
+                <InputField
+                  label="Confirm Password"
+                  type="password"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  required
+                />
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold text-lg disabled:opacity-50"
-            >
-              {loading ? "Creating account..." : "Sign Up"}
-            </button>
+                <button
+                  type="submit"
+                  disabled={otpSending}
+                  className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold text-lg disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {otpSending ? (
+                    "Sending verification code..."
+                  ) : (
+                    <>
+                      <Mail className="w-5 h-5" />
+                      Verify Email & Sign Up
+                    </>
+                  )}
+                </button>
+              </>
+            )}
+
+            {step === "otp" && (
+              <>
+                <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-sm text-emerald-800">
+                  <p className="font-medium mb-1">📧 Verification code sent!</p>
+                  <p>
+                    Check your inbox at <strong>{formData.email}</strong> and
+                    enter the 6-digit code below.
+                  </p>
+                </div>
+
+                <InputField
+                  label="Verification Code"
+                  type="text"
+                  name="otp"
+                  value={formData.otp}
+                  onChange={handleChange}
+                  placeholder="Enter 6-digit code"
+                  required
+                />
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold text-lg disabled:opacity-50"
+                >
+                  {loading ? "Creating account..." : "Complete Sign Up"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setStep("form")}
+                  className="w-full py-2 text-stone-600 hover:text-stone-800 text-sm transition"
+                >
+                  ← Back to form
+                </button>
+              </>
+            )}
           </form>
 
           <p className="text-center text-stone-600 mt-6">

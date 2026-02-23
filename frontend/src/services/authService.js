@@ -73,12 +73,12 @@ export const authService = {
    *   console.error('Signup failed:', result.error);
    * }
    */
-  async signup({ email, phone, password, orgCode }) {
+  async signup({ email, phone, password, orgCode, otp }) {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, phone, password, orgCode }),
+        body: JSON.stringify({ email, phone, password, orgCode, otp }),
       });
 
       const data = await safeJson(response);

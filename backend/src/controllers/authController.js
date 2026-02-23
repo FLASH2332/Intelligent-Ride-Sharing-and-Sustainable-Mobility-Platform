@@ -5,6 +5,7 @@ import Organization from "../models/Organization.js";
 import isStrongPassword from "../utils/passwordValidator.js";
 import { generateToken } from "../services/token.service.js";
 import { sendEmail } from "../services/email.service.js";
+import { generateOTP, verifyOTP } from "../utils/otp.utils.js";
 
 /**
  * @fileoverview Authentication Controller
@@ -14,60 +15,90 @@ import { sendEmail } from "../services/email.service.js";
  */
 
 /**
- * Register Employee User
- * 
- * @description Creates a new employee account within an organization. Validates organization
- * code, ensures password strength, and sets initial approval status to PENDING awaiting
- * organization admin approval.
- * 
- * @route POST /api/auth/register
+ * Send Email OTP
+ *
+ * @description Sends a 6-digit OTP to the user's email after validating org code
+ * and checking email domain against org's allowedDomains (if configured).
+ *
+ * @route POST /auth/send-otp
  * @access Public
- * 
- * @param {Object} req.body - Request body
- * @param {string} req.body.email - Employee email address (must be unique)
- * @param {string} req.body.phone - Employee phone number (must be unique)
- * @param {string} req.body.password - Account password (must meet strength requirements)
- * @param {string} req.body.orgCode - Organization code (case-insensitive)
- * 
- * @returns {Object} 201 - Registration successful message
- * @returns {Object} 400 - Validation error (missing fields, weak password, invalid org code)
- * @returns {Object} 409 - User already exists with email or phone
- * @returns {Object} 500 - Internal server error
- * 
- * @example
- * // Request
- * POST /api/auth/register
- * {
- *   "email": "employee@company.com",
- *   "phone": "+1234567890",
- *   "password": "SecurePass123!",
- *   "orgCode": "COMP2024"
- * }
- * 
- * // Response
- * {
- *   "message": "Registration successful. Awaiting organization admin approval."
- * }
- * 
- * @businessLogic
- * - Validates all required fields are present
- * - Enforces strong password policy (8+ chars, uppercase, lowercase, number, special char)
- * - Verifies organization exists and is active
- * - Prevents duplicate email/phone registration
- * - Hashes password with bcrypt (12 rounds)
- * - Sets default role as EMPLOYEE with PENDING approval status
- * - New users cannot login until approved by organization admin
+ */
+export const sendOtp = async (req, res) => {
+  try {
+    const { email, orgCode } = req.body;
+
+    if (!email || !orgCode) {
+      return res.status(400).json({ message: "Email and orgCode are required" });
+    }
+
+    // 1️⃣ Validate organization
+    const organization = await Organization.findOne({
+      orgCode: orgCode.toUpperCase(),
+      isActive: true,
+    });
+
+    if (!organization) {
+      return res.status(400).json({ message: "Invalid or inactive organization code" });
+    }
+
+    // 2️⃣ Domain check (if org has allowedDomains configured)
+    if (organization.allowedDomains && organization.allowedDomains.length > 0) {
+      const emailDomain = email.split("@")[1]?.toLowerCase();
+      if (!emailDomain || !organization.allowedDomains.includes(emailDomain)) {
+        return res.status(400).json({
+          message: `Your email domain is not authorized for ${organization.name}. Allowed: ${organization.allowedDomains.join(", ")}`,
+        });
+      }
+    }
+
+    // 3️⃣ Generate and send OTP
+    const code = generateOTP(email);
+
+    await sendEmail({
+      to: email,
+      subject: "Your GreenCommute verification code",
+      html: `
+        <p>Hello,</p>
+        <p>Your verification code for GreenCommute signup is:</p>
+        <h1 style="letter-spacing:6px;font-size:36px;text-align:center;
+                    color:#059669;font-family:monospace;">${code}</h1>
+        <p>This code expires in 5 minutes.</p>
+        <p>If you didn't request this, you can safely ignore this email.</p>
+      `,
+    });
+
+    return res.json({ message: "Verification code sent to your email" });
+  } catch (err) {
+    console.error("sendOtp error:", err);
+    return res.status(500).json({ message: "Failed to send verification code" });
+  }
+};
+
+/**
+ * Register Employee User
+ *
+ * @description Creates a new employee account. Requires a verified email OTP.
+ * If the email domain matches the org's allowedDomains, the user is auto-approved.
+ * Otherwise, the user is set to PENDING for Org Admin manual approval.
+ *
+ * @route POST /auth/register
+ * @access Public
  */
 export const registerEmployee = async (req, res) => {
   try {
-    const { email, phone, password, orgCode } = req.body;
+    const { email, phone, password, orgCode, otp } = req.body;
 
     // 1️⃣ Basic validation
-    if (!email || !phone || !password || !orgCode) {
+    if (!email || !phone || !password || !orgCode || !otp) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // 2️⃣ Password strength
+    // 2️⃣ Verify OTP
+    if (!verifyOTP(email, otp)) {
+      return res.status(400).json({ message: "Invalid or expired verification code" });
+    }
+
+    // 3️⃣ Password strength
     if (!isStrongPassword(password)) {
       return res.status(400).json({
         message:
@@ -75,19 +106,24 @@ export const registerEmployee = async (req, res) => {
       });
     }
 
-    // 3️⃣ Validate organization
+    // 4️⃣ Validate organization
     const organization = await Organization.findOne({
       orgCode: orgCode.toUpperCase(),
       isActive: true,
     });
 
     if (!organization) {
-      return res
-        .status(400)
-        .json({ message: "Invalid or inactive organization code" });
+      return res.status(400).json({ message: "Invalid or inactive organization code" });
     }
 
-    // 4️⃣ Existing user check
+    // 5️⃣ Domain check — determines auto-approve vs manual
+    const emailDomain = email.split("@")[1]?.toLowerCase();
+    const domainMatched =
+      organization.allowedDomains &&
+      organization.allowedDomains.length > 0 &&
+      organization.allowedDomains.includes(emailDomain);
+
+    // 6️⃣ Existing user check
     const existingUser = await User.findOne({
       $or: [{ email }, { phone }],
     });
@@ -98,26 +134,27 @@ export const registerEmployee = async (req, res) => {
       });
     }
 
-    // 5️⃣ Hash password
+    // 7️⃣ Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
-    // 6️⃣ Create employee
+    // 8️⃣ Create employee (auto-approve if domain matched)
     await User.create({
       email,
       phone,
       passwordHash,
       organizationId: organization._id,
       role: "EMPLOYEE",
-      approvalStatus: "PENDING",
-      isEmailVerified: false,
+      approvalStatus: domainMatched ? "APPROVED" : "PENDING",
+      isEmailVerified: true, // OTP just proved ownership
       isPhoneVerified: false,
       profileCompleted: false,
     });
 
-    return res.status(201).json({
-      message:
-        "Registration successful. Awaiting organization admin approval.",
-    });
+    const message = domainMatched
+      ? "Registration successful! You can now log in."
+      : "Registration successful. Awaiting organization admin approval.";
+
+    return res.status(201).json({ message, autoApproved: domainMatched });
   } catch (error) {
     console.error("Register error:", error);
     return res.status(500).json({ message: "Internal server error" });
