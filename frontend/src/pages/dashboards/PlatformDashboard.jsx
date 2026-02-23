@@ -1,18 +1,16 @@
 import { useState } from "react";
 import { Building2, UserPlus, Shield } from "lucide-react";
+import { registerPasskey } from "../../services/passkeyService";
 
 const PlatformDashboard = () => {
-  const [orgData, setOrgData] = useState({
-    name: "",
-    orgCode: "",
-  });
-
+  const [orgData, setOrgData] = useState({ name: "", orgCode: "" });
   const [adminData, setAdminData] = useState({
     email: "",
     phone: "",
     password: "",
     organizationId: "",
   });
+  const [passkeyStatus, setPasskeyStatus] = useState("");
 
   const handleCreateOrg = async () => {
     try {
@@ -59,6 +57,13 @@ const PlatformDashboard = () => {
     } catch (err) {
       alert(err.message);
     }
+  };
+
+  const handleRegisterPasskey = async () => {
+    setPasskeyStatus("loading");
+    const result = await registerPasskey();
+    setPasskeyStatus(result.success ? "success" : "error");
+    setTimeout(() => setPasskeyStatus(""), 4000);
   };
 
   return (
@@ -156,6 +161,30 @@ const PlatformDashboard = () => {
         >
           Create Org Admin
         </button>
+      </section>
+
+      {/* 🔑 Security / Passkey */}
+      <section className="bg-white border rounded-xl p-6 shadow">
+        <div className="flex items-center gap-2 mb-4">
+          <Shield className="w-5 h-5 text-indigo-600" />
+          <h2 className="text-xl font-semibold">Security</h2>
+        </div>
+        <p className="text-sm text-stone-600 mb-4">
+          Register a passkey (Touch ID / Face ID) to sign in without a password.
+        </p>
+        <button
+          onClick={handleRegisterPasskey}
+          disabled={passkeyStatus === "loading"}
+          className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+        >
+          {passkeyStatus === "loading" ? "Registering..." : "Register a Passkey"}
+        </button>
+        {passkeyStatus === "success" && (
+          <p className="mt-2 text-sm text-emerald-600">✅ Passkey registered!</p>
+        )}
+        {passkeyStatus === "error" && (
+          <p className="mt-2 text-sm text-red-600">❌ Registration failed. Try again.</p>
+        )}
       </section>
     </div>
   );

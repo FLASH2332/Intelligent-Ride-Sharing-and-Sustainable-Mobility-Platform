@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { rideService } from "../../services/rideService";
 import { io } from 'socket.io-client';
+import { registerPasskey } from "../../services/passkeyService";
 
 const EmployeeDashboard = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ const EmployeeDashboard = () => {
   const [message, setMessage] = useState("");
   const [passengerRides, setPassengerRides] = useState([]);
   const [ridesLoading, setRidesLoading] = useState(true);
+  const [passkeyStatus, setPasskeyStatus] = useState(""); // feedback for passkey UI
 
   // 🔹 Fetch logged-in user
   useEffect(() => {
@@ -127,6 +129,14 @@ const EmployeeDashboard = () => {
     }
   };
 
+  // 🔑 Register a new passkey
+  const handleRegisterPasskey = async () => {
+    setPasskeyStatus("loading");
+    const result = await registerPasskey();
+    setPasskeyStatus(result.success ? "success" : "error");
+    setTimeout(() => setPasskeyStatus(""), 4000);
+  };
+
   if (loading) {
     return <p className="p-8">Loading dashboard...</p>;
   }
@@ -180,11 +190,10 @@ const EmployeeDashboard = () => {
             <div className="pt-2 border-t">
               <div className="flex justify-between items-center">
                 <span className="text-stone-600">Profile:</span>
-                <span className={`text-xs px-2 py-1 rounded ${
-                  user.profileCompleted 
-                    ? "bg-green-100 text-green-700" 
+                <span className={`text-xs px-2 py-1 rounded ${user.profileCompleted
+                    ? "bg-green-100 text-green-700"
                     : "bg-amber-100 text-amber-700"
-                }`}>
+                  }`}>
                   {user.profileCompleted ? "Complete" : "Incomplete"}
                 </span>
               </div>
@@ -210,13 +219,12 @@ const EmployeeDashboard = () => {
             {user.isDriver && (
               <div className="flex justify-between items-center">
                 <span className="text-stone-600">Driver Status:</span>
-                <span className={`text-xs px-2 py-1 rounded ${
-                  user.driverStatus === "APPROVED" 
-                    ? "bg-green-100 text-green-700" 
+                <span className={`text-xs px-2 py-1 rounded ${user.driverStatus === "APPROVED"
+                    ? "bg-green-100 text-green-700"
                     : user.driverStatus === "PENDING"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-gray-100 text-gray-700"
-                }`}>
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-gray-100 text-gray-700"
+                  }`}>
                   {user.driverStatus || "N/A"}
                 </span>
               </div>
@@ -328,6 +336,27 @@ const EmployeeDashboard = () => {
             <p className="mt-3 text-sm text-emerald-700">{message}</p>
           )}
         </div>
+
+        {/* 🔑 Security / Passkey */}
+        <div className="p-6 bg-white border rounded-xl shadow-sm">
+          <h3 className="font-semibold text-lg mb-2">🔑 Security</h3>
+          <p className="text-sm text-stone-600 mb-4">
+            Register a passkey (Touch ID / Face ID) so you can sign in without a password next time.
+          </p>
+          <button
+            onClick={handleRegisterPasskey}
+            disabled={passkeyStatus === "loading"}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+          >
+            {passkeyStatus === "loading" ? "Registering..." : "Register a Passkey"}
+          </button>
+          {passkeyStatus === "success" && (
+            <p className="mt-2 text-sm text-emerald-600">✅ Passkey registered! Use it next time you log in.</p>
+          )}
+          {passkeyStatus === "error" && (
+            <p className="mt-2 text-sm text-red-600">❌ Registration failed. Try again.</p>
+          )}
+        </div>
       </div>
 
       {/* My Rides Section */}
@@ -335,7 +364,7 @@ const EmployeeDashboard = () => {
         <h2 className="text-2xl font-bold text-stone-900 mb-4 flex items-center gap-2">
           🚕 My Rides as Passenger
         </h2>
-        
+
         {ridesLoading ? (
           <p className="text-stone-600">Loading your rides...</p>
         ) : passengerRides.length === 0 ? (
@@ -356,13 +385,12 @@ const EmployeeDashboard = () => {
                 className="bg-white border rounded-xl shadow-sm p-5 hover:shadow-md transition-shadow"
               >
                 <div className="flex justify-between items-start mb-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                    ride.status === "APPROVED"
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold ${ride.status === "APPROVED"
                       ? "bg-green-100 text-green-700"
                       : ride.status === "REJECTED"
-                      ? "bg-red-100 text-red-700"
-                      : "bg-amber-100 text-amber-700"
-                  }`}>
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}>
                     {ride.status}
                   </span>
                   <span className="text-xs text-stone-500">
