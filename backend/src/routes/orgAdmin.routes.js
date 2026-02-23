@@ -4,6 +4,8 @@ import requireOrgAdmin from "../middlewares/orgAdmin.middleware.js";
 import {
   approveEmployee,
   listPendingEmployees,
+  listMembers,
+  removeEmployee,
 } from "../controllers/orgAdmin.controller.js";
 
 /**
@@ -30,6 +32,19 @@ router.get(
 );
 
 /**
+ * @api {get} /org-admin/members List Organization Members
+ * @apiDescription Get all approved employees in the organization
+ * @apiPermission org-admin
+ * @apiHeader {String} Authorization Bearer JWT token
+ */
+router.get(
+  "/members",
+  requireAuth,
+  requireOrgAdmin,
+  listMembers
+);
+
+/**
  * @api {post} /api/org-admin/approve-user Approve Employee
  * @apiDescription Approve pending employee registration
  * @apiPermission org-admin
@@ -42,6 +57,21 @@ router.post(
   requireAuth,
   requireOrgAdmin,
   approveEmployee
+);
+
+/**
+ * @api {delete} /org-admin/remove-user/:userId Remove Employee
+ * @apiDescription Remove an employee from the organization
+ * @apiPermission org-admin
+ * @apiHeader {String} Authorization Bearer JWT token
+ * @apiParam {String} userId MongoDB ObjectId of employee to remove
+ * @apiNote Requires ORG_ADMIN role, cross-org access prevented, only EMPLOYEE role can be removed
+ */
+router.delete(
+  "/remove-user/:userId",
+  requireAuth,
+  requireOrgAdmin,
+  removeEmployee
 );
 
 export default router;
