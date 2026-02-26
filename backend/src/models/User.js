@@ -223,6 +223,19 @@ driverRejectionReason: {
 
 
     // --------------------
+    // Passkey (WebAuthn)
+    // --------------------
+    passkeys: [
+      {
+        credentialID: { type: String, required: true },   // base64url
+        publicKey: { type: String, required: true },       // base64url COSE
+        counter: { type: Number, default: 0 },            // replay prevention
+        transports: [{ type: String }],                   // 'internal','usb',etc.
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
+
+    // --------------------
     // System Metadata
     // --------------------
     lastLogin: Date,

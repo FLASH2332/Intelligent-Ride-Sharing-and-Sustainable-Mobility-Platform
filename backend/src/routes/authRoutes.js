@@ -1,50 +1,66 @@
 import express from "express";
-import { registerEmployee, loginUser, resetPassword, forgotPassword } from "../controllers/authController.js";
+import { registerEmployee, loginUser, resetPassword, forgotPassword, sendOtp } from "../controllers/authController.js";
+import {
+    getRegisterOptions,
+    verifyRegister,
+    getLoginOptions,
+    verifyLogin,
+} from "../controllers/passkey.controller.js";
+import { verifyToken } from "../middlewares/auth.middleware.js";
+
 
 /**
  * @fileoverview Authentication Routes
  * @description Defines public authentication endpoints for user registration, login,
- * and password reset functionality.
+ * password reset, and passkey (WebAuthn) authentication.
  * @module routes/authRoutes
  */
 
 const router = express.Router();
 
-/**
- * @api {post} /api/auth/register Register Employee
- * @apiDescription Register a new employee account within an organization
- * @apiPermission public
- * @apiBody {String} email Employee email address
- * @apiBody {String} phone Employee phone number
- * @apiBody {String} password Account password (strong password required)
- * @apiBody {String} orgCode Organization code
- */
+// ─── Email OTP ────────────────────────────────────────────────────────────────
+
+/** POST /auth/send-otp — Send 6-digit verification code to email */
+router.post("/send-otp", sendOtp);
+
+// ─── Password Auth ────────────────────────────────────────────────────────────
+
+/** POST /auth/register — Register a new employee */
 router.post("/register", registerEmployee);
 
-/**
- * @api {post} /api/auth/login User Login
- * @apiDescription Authenticate user and receive JWT token
- * @apiPermission public
- * @apiBody {String} email User email address
- * @apiBody {String} password Account password
- */
+/** POST /auth/login — Authenticate with email + password */
 router.post("/login", loginUser);
 
-/**
- * @api {post} /api/auth/forgot-password Forgot Password
- * @apiDescription Request password reset email with secure token
- * @apiPermission public
- * @apiBody {String} email User email address
- */
+/** POST /auth/forgot-password — Send password reset email */
 router.post("/forgot-password", forgotPassword);
 
-/**
- * @api {post} /api/auth/reset-password/:token Reset Password
- * @apiDescription Reset password using token from email
- * @apiPermission public
- * @apiParam {String} token Password reset token from email
- * @apiBody {String} password New password (strong password required)
- */
+/** POST /auth/reset-password/:token — Reset password using emailed token */
 router.post("/reset-password/:token", resetPassword);
+
+// ─── Passkey (WebAuthn) ───────────────────────────────────────────────────────
+
+/**
+ * GET /auth/passkey/register-options
+ * Protected: user must be logged in to register a passkey on their account
+ */
+router.get("/passkey/register-options", verifyToken, getRegisterOptions);
+
+/**
+ * POST /auth/passkey/register-verify
+ * Protected: verifies the authenticator response and saves the credential
+ */
+router.post("/passkey/register-verify", verifyToken, verifyRegister);
+
+/**
+ * GET /auth/passkey/login-options?email=...
+ * Public: returns a challenge and the user's allowed credentials
+ */
+router.get("/passkey/login-options", getLoginOptions);
+
+/**
+ * POST /auth/passkey/login-verify
+ * Public: verifies the assertion and returns a JWT
+ */
+router.post("/passkey/login-verify", verifyLogin);
 
 export default router;

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Leaf, Shield } from "lucide-react";
+import { Leaf, Shield, Fingerprint } from "lucide-react";
 import InputField from "../components/InputField";
 import { authService } from "../services/authService";
+import { loginWithPasskey } from "../services/passkeyService";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -11,9 +12,10 @@ const Login = () => {
     email: "",
     password: "",
   });
-  
+
 
   const [loading, setLoading] = useState(false);
+  const [passkeyLoading, setPasskeyLoading] = useState(false);
   const [error, setError] = useState("");
 
   const handleChange = (e) => {
@@ -53,6 +55,30 @@ const Login = () => {
     }
 
     // Normal login
+    navigate("/dashboard");
+  };
+
+  const handlePasskeyLogin = async () => {
+    if (!formData.email) {
+      setError("Enter your email first, then click Sign in with Passkey.");
+      return;
+    }
+    setPasskeyLoading(true);
+    setError("");
+
+    const result = await loginWithPasskey(formData.email);
+    setPasskeyLoading(false);
+
+    if (!result.success) {
+      setError(result.message || "Passkey login failed.");
+      return;
+    }
+
+    const { user } = result.data;
+    if (!user.profileCompleted) {
+      navigate("/complete-profile");
+      return;
+    }
     navigate("/dashboard");
   };
 
@@ -133,7 +159,28 @@ const Login = () => {
             </button>
           </form>
 
-          <p className="text-center text-stone-600 mt-6">
+          {/* Divider */}
+          <div className="flex items-center my-5 gap-3">
+            <div className="flex-1 h-px bg-stone-200" />
+            <span className="text-xs text-stone-400 uppercase tracking-wide">or</span>
+            <div className="flex-1 h-px bg-stone-200" />
+          </div>
+
+          {/* Passkey Login */}
+          <button
+            type="button"
+            onClick={handlePasskeyLogin}
+            disabled={passkeyLoading}
+            className="w-full py-3 flex items-center justify-center gap-2 border-2 border-stone-300 rounded-lg hover:border-emerald-500 hover:text-emerald-700 font-semibold text-stone-700 transition-colors disabled:opacity-50"
+          >
+            <Fingerprint className="w-5 h-5" />
+            {passkeyLoading ? "Verifying..." : "Sign in with Passkey"}
+          </button>
+          <p className="text-center text-xs text-stone-400 mt-2">
+            Touch ID · Face ID · Device PIN
+          </p>
+
+          <p className="text-center text-stone-600 mt-4">
             Don&apos;t have an account?{" "}
             <button
               onClick={() => navigate("/signup")}

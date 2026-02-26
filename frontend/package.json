@@ -14,6 +14,7 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^13.2.2",
     "jwt-decode": "^4.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.563.0",
@@ -34,7 +35,7 @@
     "@vitejs/plugin-react": "^5.1.1",
     "@vitest/ui": "^4.0.18",
     "autoprefixer": "^10.4.23",
-    "eslint": "^9.39.2",
+    "eslint": "^9.20.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",

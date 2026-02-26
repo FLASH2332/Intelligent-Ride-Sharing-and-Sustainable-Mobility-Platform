@@ -69,6 +69,29 @@ export const listPendingEmployees = async (req, res) => {
 };
 
 /**
+ * List Approved Members
+ *
+ * @description Retrieves all approved employees in the organization admin's org.
+ *
+ * @route GET /org-admin/members
+ * @access Private (ORG_ADMIN only)
+ */
+export const listMembers = async (req, res) => {
+  try {
+    const users = await User.find({
+      organizationId: req.user.organizationId,
+      role: "EMPLOYEE",
+      approvalStatus: "APPROVED",
+    }).select("_id email name phone isDriver driverStatus createdAt");
+
+    res.json({ users });
+  } catch (err) {
+    console.error("listMembers error:", err);
+    res.status(500).json({ message: "Failed to fetch members" });
+  }
+};
+
+/**
  * Approve Employee
  * 
  * @description Organization admin approves a pending employee registration, granting
@@ -144,5 +167,62 @@ export const approveEmployee = async (req, res) => {
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: "Approval failed" });
+  }
+};
+
+/**
+ * Remove Employee from Organization
+ *
+ * @description Organization admin removes an employee from their organization.
+ * The user document is permanently deleted. Enforces cross-organization protection
+ * and prevents removing non-employee roles.
+ *
+ * @route DELETE /org-admin/remove-user/:userId
+ * @access Private (ORG_ADMIN only)
+ *
+ * @param {string} req.params.userId - MongoDB ObjectId of employee to remove
+ * @param {Object} req.user - Decoded JWT payload
+ * @param {string} req.user.organizationId - Admin's organization
+ *
+ * @returns {Object} 200 - Employee removed successfully
+ * @returns {Object} 400 - Cannot remove non-employee roles
+ * @returns {Object} 403 - Cross-organization access denied
+ * @returns {Object} 404 - User not found
+ * @returns {Object} 500 - Internal server error
+ */
+export const removeEmployee = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (!userId) {
+      return res.status(400).json({ message: "userId is required" });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Cross-org protection
+    if (
+      user.organizationId.toString() !==
+      req.user.organizationId.toString()
+    ) {
+      return res.status(403).json({ message: "Cross-org access denied" });
+    }
+
+    // Prevent removing other admins
+    if (user.role !== "EMPLOYEE") {
+      return res
+        .status(400)
+        .json({ message: "Can only remove employees, not admins" });
+    }
+
+    await User.findByIdAndDelete(userId);
+
+    res.json({ message: "Employee removed from organization" });
+  } catch (err) {
+    console.error("removeEmployee error:", err);
+    res.status(500).json({ message: "Failed to remove employee" });
   }
 };

@@ -63,3 +63,6 @@ const requireAuth = (req, res, next) => {
 };
 
 export default requireAuth;
+
+// Named export alias so passkey routes can import { verifyToken }
+export { requireAuth as verifyToken };

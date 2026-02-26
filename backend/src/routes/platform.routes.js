@@ -4,6 +4,7 @@ import requirePlatformAdmin from "../middlewares/platform.middleware.js";
 import {
   createOrganization,
   createOrgAdmin,
+  listOrganizations,
 } from "../controllers/platform.controller.js";
 
 /**
@@ -16,13 +17,19 @@ import {
 const router = express.Router();
 
 /**
- * @api {post} /api/platform/organizations Create Organization
- * @apiDescription Create a new organization entity
+ * @api {get} /platform/organizations List All Organizations
  * @apiPermission platform-admin
- * @apiHeader {String} Authorization Bearer JWT token
- * @apiBody {String} name Organization name
- * @apiBody {String} orgCode Unique organization code
- * @apiNote Requires PLATFORM_ADMIN role - super admin only
+ */
+router.get(
+  "/organizations",
+  requireAuth,
+  requirePlatformAdmin,
+  listOrganizations
+);
+
+/**
+ * @api {post} /platform/organizations Create Organization
+ * @apiPermission platform-admin
  */
 router.post(
   "/organizations",

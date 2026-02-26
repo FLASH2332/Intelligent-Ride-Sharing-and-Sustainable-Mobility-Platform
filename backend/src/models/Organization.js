@@ -67,6 +67,16 @@ const organizationSchema = new mongoose.Schema(
       index: true,
     },
 
+    // Email domains allowed for self-service signup (e.g. ["tcs.com", "amrita.edu"])
+    // If empty → any email allowed but requires Org Admin manual approval
+    allowedDomains: [
+      {
+        type: String,
+        lowercase: true,
+        trim: true,
+      },
+    ],
+
     // Org admins are Users with role = ORG_ADMIN
     admins: [
       {
