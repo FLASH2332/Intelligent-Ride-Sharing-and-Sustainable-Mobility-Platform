@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { tripService } from '../../services/tripService';
 import { rideService } from '../../services/rideService';
@@ -59,10 +59,9 @@ const ActiveTrip = () => {
     });
 
     return () => socket.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchTripDetails]);
 
-  const fetchTripDetails = async () => {
+  const fetchTripDetails = useCallback(async () => {
     try {
       setLoading(true);
       const data = await tripService.getTripById(tripId);
@@ -72,7 +71,7 @@ const ActiveTrip = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [tripId]);
 
   const handleStartTrip = async () => {
     try {
