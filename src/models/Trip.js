@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { FUEL_TYPES } from '../config/fuelTypes.js';
 
 /**
  * @fileoverview Trip Model
@@ -103,6 +104,14 @@ const tripSchema = new mongoose.Schema({
       message: '{VALUE} is not a valid vehicle type'
     },
     required: [true, 'Vehicle type is required']
+  },
+  fuelType: {
+    type: String,
+    enum: {
+      values: FUEL_TYPES,
+      message: '{VALUE} is not a valid fuel type'
+    },
+    required: [true, 'Fuel type is required']
   },
   totalSeats: {
     type: Number,

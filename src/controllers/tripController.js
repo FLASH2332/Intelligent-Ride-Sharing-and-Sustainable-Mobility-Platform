@@ -2,6 +2,7 @@ import Trip from '../models/Trip.js';
 import RideRequest from '../models/RideRequest.js';
 import { getIO } from '../config/socket.js';
 import { calculateCo2Saved } from '../services/carbon.service.js';
+import { FUEL_TYPES } from '../config/fuelTypes.js';
 
 /**
  * @fileoverview Trip Management Controller
@@ -124,13 +125,28 @@ export const createTrip = async (req, res) => {
       });
     }
 
-    const { vehicleType, totalSeats, scheduledTime, source, destination, sourceLocation, destinationLocation, distanceKm, conventionalEmissionFactor, sustainableEmissionFactor } = req.body;
+    const { vehicleType, totalSeats, scheduledTime, source, destination, sourceLocation, destinationLocation, distanceKm, conventionalEmissionFactor, sustainableEmissionFactor, fuelType } = req.body;
 
     // Validate required fields
     if (!source || !destination || !scheduledTime || !vehicleType || !totalSeats) {
       return res.status(400).json({
         success: false,
         message: 'All fields are required: source, destination, scheduledTime, vehicleType, totalSeats'
+      });
+    }
+
+    // Validate fuelType
+    if (!fuelType) {
+      return res.status(400).json({
+        success: false,
+        message: 'Fuel type is required'
+      });
+    }
+
+    if (!FUEL_TYPES.includes(fuelType)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid fuel type. Allowed values: ${FUEL_TYPES.join(', ')}`
       });
     }
 
@@ -168,6 +184,7 @@ export const createTrip = async (req, res) => {
     const tripData = {
       driverId: req.user.userId,
       vehicleType,
+      fuelType,
       totalSeats: parseInt(totalSeats),
       availableSeats: parseInt(totalSeats),
       scheduledTime: tripScheduledTime,
