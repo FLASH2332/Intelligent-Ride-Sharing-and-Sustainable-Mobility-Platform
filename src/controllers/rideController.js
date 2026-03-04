@@ -1,6 +1,7 @@
 import RideRequest from '../models/RideRequest.js';
 import Trip from '../models/Trip.js';
 import { getIO } from '../config/socket.js';
+import { creditRidePoints } from '../services/points.service.js';
 import { optimizeRoute } from '../services/routeOptimization.service.js';
 
 /**
@@ -354,7 +355,7 @@ export const approveRide = async (req, res) => {
         message: 'Your ride request has been approved',
         timestamp: new Date()
       });
-      
+
       // Emit trip seats update event for all users
       io.emit('trip-seats-updated', {
         tripId: rideRequest.tripId._id,
@@ -475,7 +476,7 @@ export const rejectRide = async (req, res) => {
         message: 'Your ride request has been rejected',
         timestamp: new Date()
       });
-      
+
       // Note: No seat update needed for rejection
     } catch (socketError) {
       console.error('Socket.io emit error:', socketError);
@@ -778,7 +779,7 @@ export const markAsPickedUp = async (req, res) => {
         message: 'You have been picked up',
         timestamp: new Date()
       });
-      
+
       // Also emit to trip room
       io.to(`trip:${rideRequest.tripId._id}`).emit('passengerPickup', {
         rideId: rideRequest._id,
@@ -905,6 +906,17 @@ export const markAsDroppedOff = async (req, res) => {
     rideRequest.droppedOffAt = new Date();
     await rideRequest.save();
 
+    // ── Epic-4: Credit points for passenger and driver (non-blocking) ──
+    creditRidePoints({
+      passengerId: rideRequest.passengerId._id,
+      driverId: rideRequest.tripId.driverId,
+      tripId: rideRequest.tripId._id,
+      rideRequestId: rideRequest._id,
+      organizationId: rideRequest.tripId.organizationId || req.user.organizationId,
+      scheduledTime: rideRequest.tripId.scheduledTime,
+      requestedAt: rideRequest.createdAt,
+    }).catch(err => console.error('Points credit failed (non-critical):', err.message));
+
     // Emit Socket.io event to passenger
     try {
       const io = getIO();
@@ -914,7 +926,7 @@ export const markAsDroppedOff = async (req, res) => {
         message: 'You have been dropped off',
         timestamp: new Date()
       });
-      
+
       // Also emit to trip room
       io.to(`trip:${rideRequest.tripId._id}`).emit('passengerDropoff', {
         rideId: rideRequest._id,
@@ -1040,7 +1052,7 @@ export const cancelRide = async (req, res) => {
       const io = getIO();
       // Ensure ObjectId is cast explicitly to string
       const driverStrId = trip.driverId._id ? trip.driverId._id.toString() : trip.driverId.toString();
-      
+
       io.to(`user-${driverStrId}`).emit('ride-cancelled-by-passenger', {
         rideId: rideRequest._id.toString(),
         tripId: trip._id.toString(),
@@ -1090,14 +1102,14 @@ export const cancelRide = async (req, res) => {
  */
 async function optimizeRouteForTrip(tripId) {
   console.log('🔧 optimizeRouteForTrip called with tripId:', tripId);
-  
+
   // Get trip with source and destination
   const trip = await Trip.findById(tripId);
   if (!trip) {
     console.error('❌ Trip not found:', tripId);
     throw new Error('Trip not found');
   }
-  
+
   console.log('📍 Trip found:', {
     id: trip._id,
     source: trip.sourceLocation?.address || trip.source,
@@ -1111,13 +1123,13 @@ async function optimizeRouteForTrip(tripId) {
   }).populate('passengerId', 'name');
 
   console.log(`🚗 Found ${approvedRequests.length} approved ride requests`);
-  
+
   // If no approved passengers or only 1, no optimization needed
   if (approvedRequests.length === 0) {
     console.log('⚠️ No approved passengers, skipping optimization');
     return;
   }
-  
+
   console.log('📦 Approved requests structure:', approvedRequests.map(r => ({
     id: r._id,
     passenger: r.passengerId?.name,
@@ -1152,7 +1164,7 @@ async function optimizeRouteForTrip(tripId) {
 
   // Run optimization algorithm
   const optimizationResult = optimizeRoute(source, destination, waypoints);
-  
+
   console.log('✨ Optimization result:', {
     waypointsCount: optimizationResult.orderedWaypoints.length,
     totalDistance: optimizationResult.totalDistance,
@@ -1169,8 +1181,8 @@ async function optimizeRouteForTrip(tripId) {
     order: index + 1,
     passengerName: wp.passengerName,
     passengerId: wp.passengerId,
-    distanceFromPrevious: index === 0 
-      ? optimizationResult.legs[0]?.distance 
+    distanceFromPrevious: index === 0
+      ? optimizationResult.legs[0]?.distance
       : optimizationResult.legs[index]?.distance
   }));
   trip.isOptimized = true;
@@ -1181,7 +1193,7 @@ async function optimizeRouteForTrip(tripId) {
   };
 
   await trip.save();
-  
+
   console.log(`✅ Route optimized and saved for trip ${tripId}:`, {
     waypointsCount: trip.waypoints.length,
     isOptimized: trip.isOptimized,
