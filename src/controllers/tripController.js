@@ -3,6 +3,7 @@ import RideRequest from '../models/RideRequest.js';
 import { getIO } from '../config/socket.js';
 import { calculateCo2Saved } from '../services/carbon.service.js';
 import { FUEL_TYPES } from '../config/fuelTypes.js';
+import { computeAllTripEsgMetrics } from '../services/esgCalculation.service.js';
 
 /**
  * @fileoverview Trip Management Controller
@@ -553,10 +554,33 @@ export const getDriverTrips = async (req, res) => {
       .populate('driverId', 'name email')
       .sort({ scheduledTime: -1 });
 
+    if (trips.length === 0) {
+      return res.status(200).json({ success: true, count: 0, trips: [] });
+    }
+
+    // Get pending ride-request counts for all driver trips in one query
+    const tripIds = trips.map(t => t._id);
+    const pendingCounts = await RideRequest.aggregate([
+      { $match: { tripId: { $in: tripIds }, status: 'PENDING' } },
+      { $group: { _id: '$tripId', count: { $sum: 1 } } }
+    ]);
+
+    // Build a lookup map: tripId string -> pending count
+    const pendingCountMap = {};
+    pendingCounts.forEach(({ _id, count }) => {
+      pendingCountMap[_id.toString()] = count;
+    });
+
+    // Attach pendingRequestCount to each trip plain object
+    const tripsWithCounts = trips.map(trip => ({
+      ...trip.toObject(),
+      pendingRequestCount: pendingCountMap[trip._id.toString()] || 0
+    }));
+
     res.status(200).json({
       success: true,
-      count: trips.length,
-      trips: trips
+      count: tripsWithCounts.length,
+      trips: tripsWithCounts
     });
 
   } catch (error) {
@@ -1012,6 +1036,30 @@ export const completeTrip = async (req, res) => {
 
     trip.status = 'COMPLETED';
     trip.actualEndTime = new Date();
+
+    // ── Epic 3: Compute & persist ESG metrics on completion ──────────────────
+    if (trip.distanceKm && trip.fuelType) {
+      try {
+        const seatsOccupied =
+          (trip.totalSeats ?? 1) - (trip.availableSeats ?? 0) || 1;
+        const esg = computeAllTripEsgMetrics({
+          distanceKm:   trip.distanceKm,
+          fuelType:     trip.fuelType,
+          co2SavedKg:   trip.co2SavedKg ?? 0,
+          seatsOccupied,
+        });
+        trip.treesEquivalent       = esg.treesEquivalent;
+        trip.soloBaselineCo2Kg     = esg.soloBaselineCo2Kg;
+        trip.carpoolSavingsKg      = esg.carpoolSavingsKg;
+        trip.routeEfficiencyScore  = esg.routeEfficiencyScore;
+        trip.idleEmissionsKg       = esg.idleEmissionsKg;
+        trip.fuelCostSavingsINR    = esg.fuelCostSavingsINR;
+        trip.maintenanceSavingsINR = esg.maintenanceSavingsINR;
+      } catch (esgErr) {
+        console.warn('[tripController] ESG metric computation failed (non-fatal):', esgErr.message);
+      }
+    }
+
     await trip.save();
 
     res.status(200).json({

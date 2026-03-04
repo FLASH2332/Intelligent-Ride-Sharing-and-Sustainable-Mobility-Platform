@@ -1,3 +1,6 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 
@@ -13,8 +16,11 @@ import adminDriverRoutes from "./routes/adminDriver.routes.js";
 import tripRoutes from "./routes/tripRoutes.js";
 import rideRoutes from "./routes/rideRoutes.js";
 
-// Epic-3 Routes (Carbon calculation)
+// Epic-3 Routes (Carbon calculation + ESG Impact Intelligence)
 import carbonRoutes from "./routes/carbon.routes.js";
+import impactRoutes from "./routes/impact.routes.js";
+import esgAdminRoutes from "./routes/esgAdmin.routes.js";
+import exportRoutes from "./routes/export.routes.js";
 
 const app = express();
 
@@ -34,8 +40,11 @@ app.use("/driver", driverRoutes);
 app.use("/api", tripRoutes);
 app.use("/api", rideRoutes);
 
-// Epic-3 Routes (Carbon calculation)
-app.use("/carbon", carbonRoutes);
+// Epic-3 Routes (Carbon calculation + ESG Impact Intelligence)
+app.use("/api/carbon", carbonRoutes);
+app.use("/api/impact", impactRoutes);
+app.use("/api/esg-admin", esgAdminRoutes);
+app.use("/api/export", exportRoutes);
 
 // Serve uploaded documents
 app.use("/uploads", express.static("uploads"));
