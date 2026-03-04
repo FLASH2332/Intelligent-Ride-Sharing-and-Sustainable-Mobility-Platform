@@ -9,6 +9,7 @@ import {
   getDriverTrips,
   updateDriverLocation,
   getTripById,
+  getAllOrgTrips,
   getTripSummary,
   getOptimizedRoutePreview
 } from '../controllers/tripController.js';
@@ -54,6 +55,11 @@ router.post('/trips', protect, requireDriver, createTrip);
  * @apiQuery {Number} [maxDistance=5000] Max distance in meters
  */
 router.get('/trips/search', protect, searchTrips);
+
+/**
+ * @api {get} /api/trips/admin/all Get All Trips (Admin)
+ */
+router.get('/trips/admin/all', protect, getAllOrgTrips);
 
 /**
  * @api {get} /api/trips/:id Get Trip Details

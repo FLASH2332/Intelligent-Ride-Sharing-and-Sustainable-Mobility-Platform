@@ -23,6 +23,12 @@ import esgAdminRoutes from "./routes/esgAdmin.routes.js";
 import exportRoutes from "./routes/export.routes.js";
 import mockTripRoutes from "./routes/mockTrip.routes.js";
 
+// Epic-4 Routes (Gamification & Rewards)
+import gamificationRoutes from "./routes/gamification.routes.js";
+import rewardsRoutes from "./routes/rewards.routes.js";
+import rewardsAdminRoutes from "./routes/rewardsAdmin.routes.js";
+import pointRulesRoutes from "./routes/pointRules.routes.js";
+
 const app = express();
 
 // Global middlewares
@@ -46,6 +52,12 @@ app.use("/api/carbon", carbonRoutes);
 app.use("/api/impact", impactRoutes);
 app.use("/api/esg-admin", esgAdminRoutes);
 app.use("/api/export", exportRoutes);
+
+// Epic-4 Routes (Gamification & Rewards)
+app.use("/api/gamification", gamificationRoutes);
+app.use("/api/rewards", rewardsRoutes);
+app.use("/org-admin/rewards", rewardsAdminRoutes);
+app.use("/platform/point-rules", pointRulesRoutes);
 
 // Mock/Testing Routes
 app.use("/api/mock", mockTripRoutes);

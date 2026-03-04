@@ -205,6 +205,7 @@ export const createTrip = async (req, res) => {
     // Prepare trip data
     const tripData = {
       driverId: req.user.userId,
+      organizationId: req.user.organizationId || null, // Epic-4
       vehicleType,
       fuelType,
       totalSeats: parseInt(totalSeats),
@@ -253,7 +254,7 @@ export const createTrip = async (req, res) => {
       };
 
       const validation = validateRouteInput(sourceForOptimization, destForOptimization, waypoints);
-      
+
       if (!validation.valid) {
         return res.status(400).json({
           success: false,
@@ -264,7 +265,7 @@ export const createTrip = async (req, res) => {
       // Optimize waypoint order
       try {
         const optimizedRoute = optimizeRoute(sourceForOptimization, destForOptimization, waypoints);
-        
+
         // Store optimized waypoints with order
         tripData.waypoints = optimizedRoute.orderedWaypoints.map((wp, index) => ({
           address: wp.address || `Stop ${index + 1}`,
@@ -306,7 +307,7 @@ export const createTrip = async (req, res) => {
       if (tripData.sourceLocation && tripData.destinationLocation) {
         const sourceCoords = tripData.sourceLocation.coordinates.coordinates;
         const destCoords = tripData.destinationLocation.coordinates.coordinates;
-        
+
         // Only set route if coordinates are distinct
         if (sourceCoords[0] !== destCoords[0] || sourceCoords[1] !== destCoords[1]) {
           tripData.route = {
@@ -853,7 +854,7 @@ export const updateDriverLocation = async (req, res) => {
       type: 'Point',
       coordinates: [parseFloat(lng), parseFloat(lat)]
     };
-    
+
     await trip.save();
 
     res.status(200).json({
@@ -1306,6 +1307,47 @@ export const cancelTrip = async (req, res) => {
 };
 
 /**
+ * Get All Org Trips (Admin Only)
+ * 
+ * @route GET /api/trips/admin/all
+ */
+export const getAllOrgTrips = async (req, res) => {
+  try {
+    if (req.user.role !== "ORG_ADMIN" && req.user.role !== "PLATFORM_ADMIN") {
+      return res.status(403).json({ success: false, message: "Admin access required" });
+    }
+
+    let filter = {};
+    if (req.user.role === "ORG_ADMIN") {
+      filter.organizationId = req.user.organizationId;
+    }
+
+    const trips = await Trip.find(filter)
+      .populate('driverId', 'name email phone')
+      .populate({
+        path: 'rides',
+        populate: {
+          path: 'passengerId',
+          select: 'name email phone'
+        }
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: trips.length,
+      trips
+    });
+  } catch (error) {
+    console.error('Get all org trips error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch trips'
+    });
+  }
+};
+
+/**
  * Get Trip Summary
  * 
  * @description Provides comprehensive trip summary after completion including statistics,
@@ -1397,12 +1439,12 @@ export const getTripSummary = async (req, res) => {
     if (trip.sourceLocation?.coordinates?.coordinates && trip.destinationLocation?.coordinates?.coordinates) {
       const [srcLng, srcLat] = trip.sourceLocation.coordinates.coordinates;
       const [destLng, destLat] = trip.destinationLocation.coordinates.coordinates;
-      
+
       // Haversine formula for distance (in km)
       const R = 6371; // Earth's radius in km
       const dLat = (destLat - srcLat) * Math.PI / 180;
       const dLng = (destLng - srcLng) * Math.PI / 180;
-      const a = 
+      const a =
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(srcLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) *
         Math.sin(dLng / 2) * Math.sin(dLng / 2);
@@ -1486,29 +1528,6 @@ export const getTripSummary = async (req, res) => {
  * @returns {Object} 400 - No optimized route available
  * @returns {Object} 403 - Not authorized (not the trip driver)
  * @returns {Object} 404 - Trip not found
- * 
- * @example
- * // Response
- * {
- *   "success": true,
- *   "route": {
- *     "isOptimized": true,
- *     "waypoints": [
- *       {
- *         "order": 1,
- *         "lat": 40.7128,
- *         "lng": -74.0060,
- *         "address": "123 Main St",
- *         "passengerId": "...",
- *         "passengerName": "John Doe",
- *         "distanceFromPrevious": 2.5
- *       }
- *     ],
- *     "totalDistance": 15.5,
- *     "estimatedDuration": 35,
- *     "passengersCount": 3
- *   }
- * }
  */
 export const getOptimizedRoutePreview = async (req, res) => {
   try {
