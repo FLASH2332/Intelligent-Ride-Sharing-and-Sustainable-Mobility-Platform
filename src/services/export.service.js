@@ -56,6 +56,7 @@ const fetchTripsForExport = async ({ organizationId, startDate, endDate, driverI
   const matchStage = {
     status: 'COMPLETED',
     createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    fuelType: { $ne: null },  // Only include trips with ESG data
   };
 
   if (driverId) {

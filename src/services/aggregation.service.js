@@ -37,6 +37,7 @@ export const getUserLifetimeImpact = async (driverId) => {
       $match: {
         driverId: toObjectId(driverId),
         status: 'COMPLETED',
+        fuelType: { $ne: null },  // Only include trips with ESG data
       },
     },
     {
@@ -105,6 +106,7 @@ export const getOrgImpact = async (organizationId) => {
       $match: {
         'driver.organizationId': toObjectId(organizationId),
         status: 'COMPLETED',
+        fuelType: { $ne: null },  // Exclude pre-Epic-3 trips without ESG data
       },
     },
     // Per-fuel-type breakdown + totals in single pass
@@ -252,7 +254,7 @@ export const getGlobalImpact = async () => {
   const [totalsResult, byOrgResult] = await Promise.all([
     // Global totals single-pass
     Trip.aggregate([
-      { $match: { status: 'COMPLETED' } },
+      { $match: { status: 'COMPLETED', fuelType: { $ne: null } } },
       {
         $group: {
           _id: null,
@@ -281,7 +283,7 @@ export const getGlobalImpact = async () => {
 
     // Top 10 orgs by CO2 saved
     Trip.aggregate([
-      { $match: { status: 'COMPLETED' } },
+      { $match: { status: 'COMPLETED', fuelType: { $ne: null } } },
       {
         $lookup: {
           from: 'users',
