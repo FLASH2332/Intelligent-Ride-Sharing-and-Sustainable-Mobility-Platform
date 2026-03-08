@@ -467,6 +467,7 @@ export const searchTrips = async (req, res) => {
       const baseQuery = {
         status: 'SCHEDULED',
         availableSeats: { $gt: 0 },
+        scheduledTime: { $gte: new Date() },  // Only future trips
         'sourceLocation.coordinates.coordinates': { $exists: true, $ne: [0, 0] },
         'destinationLocation.coordinates.coordinates': { $exists: true, $ne: [0, 0] }
       };
@@ -561,6 +562,7 @@ export const searchTrips = async (req, res) => {
       const query = {
         status: 'SCHEDULED',
         availableSeats: { $gt: 0 },
+        scheduledTime: { $gte: new Date() },  // Only future trips
         source: { $regex: source, $options: 'i' },
         destination: { $regex: destination, $options: 'i' }
       };
@@ -1124,6 +1126,27 @@ export const completeTrip = async (req, res) => {
 
     trip.status = 'COMPLETED';
     trip.actualEndTime = new Date();
+
+    // ── Auto-calculate distance if not set ────────────────────────────────────
+    if (!trip.distanceKm && trip.sourceLocation?.coordinates?.coordinates && trip.destinationLocation?.coordinates?.coordinates) {
+      try {
+        const [srcLng, srcLat] = trip.sourceLocation.coordinates.coordinates;
+        const [destLng, destLat] = trip.destinationLocation.coordinates.coordinates;
+        
+        // Haversine formula for distance (in km)
+        const R = 6371; // Earth's radius in km
+        const dLat = (destLat - srcLat) * Math.PI / 180;
+        const dLng = (destLng - srcLng) * Math.PI / 180;
+        const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                  Math.cos(srcLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) *
+                  Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        trip.distanceKm = Math.round(R * c * 100) / 100; // Round to 2 decimal places
+        console.log(`[tripController] Auto-calculated distance: ${trip.distanceKm} km`);
+      } catch (distErr) {
+        console.warn('[tripController] Distance calculation failed:', distErr.message);
+      }
+    }
 
     // ── Epic 3: Compute & persist ESG metrics on completion ──────────────────
     if (trip.distanceKm && trip.fuelType) {
