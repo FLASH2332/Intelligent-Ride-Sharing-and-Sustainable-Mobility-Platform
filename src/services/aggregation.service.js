@@ -38,6 +38,7 @@ export const getUserLifetimeImpact = async (driverId) => {
         driverId: toObjectId(driverId),
         status: 'COMPLETED',
         fuelType: { $ne: null },  // Only include trips with ESG data
+        distanceKm: { $gt: 0 },   // Must have calculated distance
       },
     },
     {
@@ -107,6 +108,7 @@ export const getOrgImpact = async (organizationId) => {
         'driver.organizationId': toObjectId(organizationId),
         status: 'COMPLETED',
         fuelType: { $ne: null },  // Exclude pre-Epic-3 trips without ESG data
+        distanceKm: { $gt: 0 },   // Must have calculated distance
       },
     },
     // Per-fuel-type breakdown + totals in single pass
@@ -205,6 +207,8 @@ export const getTopCommutePartners = async (driverId, limit = 5) => {
     {
       $match: {
         'trip.driverId': toObjectId(driverId),
+        'trip.status': 'COMPLETED',
+        'trip.distanceKm': { $gt: 0 },
         status: 'APPROVED',
       },
     },
@@ -254,7 +258,7 @@ export const getGlobalImpact = async () => {
   const [totalsResult, byOrgResult] = await Promise.all([
     // Global totals single-pass
     Trip.aggregate([
-      { $match: { status: 'COMPLETED', fuelType: { $ne: null } } },
+      { $match: { status: 'COMPLETED', fuelType: { $ne: null }, distanceKm: { $gt: 0 } } },
       {
         $group: {
           _id: null,
@@ -283,7 +287,7 @@ export const getGlobalImpact = async () => {
 
     // Top 10 orgs by CO2 saved
     Trip.aggregate([
-      { $match: { status: 'COMPLETED', fuelType: { $ne: null } } },
+      { $match: { status: 'COMPLETED', fuelType: { $ne: null }, distanceKm: { $gt: 0 } } },
       {
         $lookup: {
           from: 'users',
@@ -354,7 +358,7 @@ export const getGlobalImpact = async () => {
 export const getPassengerLifetimeImpact = async (userId) => {
   const pipeline = [
     // Only approved rides
-    { $match: { userId: toObjectId(userId), status: 'APPROVED' } },
+    { $match: { passengerId: toObjectId(userId), status: 'APPROVED' } },
     // Join trip
     {
       $lookup: {

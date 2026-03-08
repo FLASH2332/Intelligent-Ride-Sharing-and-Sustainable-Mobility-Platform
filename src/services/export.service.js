@@ -57,6 +57,7 @@ const fetchTripsForExport = async ({ organizationId, startDate, endDate, driverI
     status: 'COMPLETED',
     createdAt: { $gte: new Date(startDate), $lte: new Date(endDate) },
     fuelType: { $ne: null },  // Only include trips with ESG data
+    distanceKm: { $gt: 0 },   // Must have calculated distance
   };
 
   if (driverId) {
