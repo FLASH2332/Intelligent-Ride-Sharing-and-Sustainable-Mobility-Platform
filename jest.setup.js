@@ -6,6 +6,11 @@
  */
 import mongoose from 'mongoose';
 
+// Set JWT_SECRET for tests if not already set (ensures CI compatibility)
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'test-secret';
+}
+
 // Without a live DB, Mongoose buffers queries.  The default bufferTimeoutMS is
 // 10 000 ms which exceeds Jest's testTimeout.  Setting it to 500 ms lets the
 // controller's try/catch return a 500 within the test window.
