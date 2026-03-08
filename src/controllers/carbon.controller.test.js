@@ -15,7 +15,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 200 with correct co2SavedKg for standard inputs', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 10,
           conventionalEmissionFactor: 0.21,
@@ -29,7 +29,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return correct JSON structure', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 5,
           conventionalEmissionFactor: 0.3,
@@ -50,7 +50,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should accept sustainableEmissionFactor = 0 (zero-emission scenario)', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 20,
           conventionalEmissionFactor: 0.21,
@@ -65,7 +65,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 200 for large distance values', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 500,
           conventionalEmissionFactor: 0.2,
@@ -83,7 +83,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when distanceKm is 0', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 0,
           conventionalEmissionFactor: 0.21,
@@ -97,7 +97,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when distanceKm is negative', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: -10,
           conventionalEmissionFactor: 0.21,
@@ -110,7 +110,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when sustainableEmissionFactor >= conventionalEmissionFactor', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 10,
           conventionalEmissionFactor: 0.1,
@@ -124,7 +124,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when sustainableEmissionFactor equals conventionalEmissionFactor', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 10,
           conventionalEmissionFactor: 0.21,
@@ -137,7 +137,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when conventionalEmissionFactor is negative', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 10,
           conventionalEmissionFactor: -0.1,
@@ -150,7 +150,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when distanceKm is missing', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           conventionalEmissionFactor: 0.21,
           sustainableEmissionFactor: 0.05
@@ -163,7 +163,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when conventionalEmissionFactor is missing', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 10,
           sustainableEmissionFactor: 0.05
@@ -176,7 +176,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when sustainableEmissionFactor is missing', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({
           distanceKm: 10,
           conventionalEmissionFactor: 0.21
@@ -189,7 +189,7 @@ describe('Carbon API - POST /carbon/calculate', () => {
 
     test('should return 400 when body is empty', async () => {
       const response = await request(app)
-        .post('/carbon/calculate')
+        .post('/api/carbon/calculate')
         .send({});
 
       expect(response.status).toBe(400);

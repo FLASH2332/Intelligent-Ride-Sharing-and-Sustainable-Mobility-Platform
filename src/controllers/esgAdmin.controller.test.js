@@ -20,20 +20,20 @@ const driverToken   = makeToken({ userId: 'driver-1', role: 'DRIVER',        isD
 
 describe('GET /esg-admin/dashboard', () => {
   test('401 without auth token', async () => {
-    const res = await request(app).get('/esg-admin/dashboard');
+    const res = await request(app).get('/api/esg-admin/dashboard');
     expect(res.status).toBe(401);
   });
 
   test('403 for driver (requires ORG_ADMIN)', async () => {
     const res = await request(app)
-      .get('/esg-admin/dashboard')
+      .get('/api/esg-admin/dashboard')
       .set('Authorization', `Bearer ${driverToken}`);
     expect(res.status).toBe(403);
   });
 
   test('403 for platform admin on dashboard (requires ORG_ADMIN not PLATFORM_ADMIN)', async () => {
     const res = await request(app)
-      .get('/esg-admin/dashboard')
+      .get('/api/esg-admin/dashboard')
       .set('Authorization', `Bearer ${platformToken}`);
     expect(res.status).toBe(403);
   });
@@ -41,14 +41,14 @@ describe('GET /esg-admin/dashboard', () => {
   test('400 when org admin has no organizationId', async () => {
     const noOrgToken = makeToken({ userId: 'admin-no-org', role: 'ORG_ADMIN', organizationId: null });
     const res = await request(app)
-      .get('/esg-admin/dashboard')
+      .get('/api/esg-admin/dashboard')
       .set('Authorization', `Bearer ${noOrgToken}`);
     expect(res.status).toBe(400);
   });
 
   test('auth guard passes for org admin (proceeds to service layer)', async () => {
     const res = await request(app)
-      .get('/esg-admin/dashboard')
+      .get('/api/esg-admin/dashboard')
       .set('Authorization', `Bearer ${orgAdminToken}`);
     // Not 401 or 403 — auth/role guard passed
     expect(res.status).not.toBe(401);
@@ -60,27 +60,27 @@ describe('GET /esg-admin/dashboard', () => {
 
 describe('GET /esg-admin/global', () => {
   test('401 without auth token', async () => {
-    const res = await request(app).get('/esg-admin/global');
+    const res = await request(app).get('/api/esg-admin/global');
     expect(res.status).toBe(401);
   });
 
   test('403 for org admin (requires PLATFORM_ADMIN)', async () => {
     const res = await request(app)
-      .get('/esg-admin/global')
+      .get('/api/esg-admin/global')
       .set('Authorization', `Bearer ${orgAdminToken}`);
     expect(res.status).toBe(403);
   });
 
   test('403 for driver', async () => {
     const res = await request(app)
-      .get('/esg-admin/global')
+      .get('/api/esg-admin/global')
       .set('Authorization', `Bearer ${driverToken}`);
     expect(res.status).toBe(403);
   });
 
   test('auth guard passes for platform admin (proceeds to service layer)', async () => {
     const res = await request(app)
-      .get('/esg-admin/global')
+      .get('/api/esg-admin/global')
       .set('Authorization', `Bearer ${platformToken}`);
     expect(res.status).not.toBe(401);
     expect(res.status).not.toBe(403);
@@ -91,13 +91,13 @@ describe('GET /esg-admin/global', () => {
 
 describe('GET /esg-admin/commute-partners', () => {
   test('401 without auth token', async () => {
-    const res = await request(app).get('/esg-admin/commute-partners');
+    const res = await request(app).get('/api/esg-admin/commute-partners');
     expect(res.status).toBe(401);
   });
 
   test('auth guard passes for authenticated user', async () => {
     const res = await request(app)
-      .get('/esg-admin/commute-partners')
+      .get('/api/esg-admin/commute-partners')
       .set('Authorization', `Bearer ${driverToken}`);
     // Passes auth guard; DB call may fail but not 401
     expect(res.status).not.toBe(401);
@@ -105,7 +105,7 @@ describe('GET /esg-admin/commute-partners', () => {
 
   test('auth guard passes for org admin too', async () => {
     const res = await request(app)
-      .get('/esg-admin/commute-partners')
+      .get('/api/esg-admin/commute-partners')
       .set('Authorization', `Bearer ${orgAdminToken}`);
     expect(res.status).not.toBe(401);
   });
