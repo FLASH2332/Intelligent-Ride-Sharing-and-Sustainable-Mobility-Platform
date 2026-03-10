@@ -23,8 +23,8 @@ const authMaxRequests = toPositiveInt(process.env.RATE_LIMIT_AUTH_MAX, isDevelop
 let globalLimiter;
 let authLimiter;
 
-if (isTestEnv) {
-    // Bypass rate limiters explicitly during integration tests to avoid redis mock issues
+if (isTestEnv || isDevelopmentEnv) {
+    // Bypass rate limiters in test & development to avoid blocking manual testing
     globalLimiter = (req, res, next) => next();
     authLimiter = (req, res, next) => next();
 } else {

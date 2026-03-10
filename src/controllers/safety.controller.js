@@ -152,9 +152,13 @@ export const createShareLink = async (req, res) => {
  */
 export const trackSharedTrip = async (req, res) => {
   try {
+    console.log(`[trackSharedTrip] 🔓 Public access - token: ${req.params.token}`);
     const result = await resolveShareToken(req.params.token);
+    console.log(`[trackSharedTrip] ✅ Token resolved - trip: ${result.trip?._id}, status: ${result.trip?.status}`);
+    console.log(`[trackSharedTrip] 📦 Sending response:`, { success: true, data: result });
     res.status(200).json({ success: true, data: result });
   } catch (err) {
+    console.error(`[trackSharedTrip] ❌ Error:`, err.message);
     const status = err.statusCode || 500;
     res.status(status).json({ success: false, message: err.message });
   }

@@ -191,21 +191,29 @@ export async function generateShareToken(tripId, userId) {
  * @throws {Error} statusCode 404 if token invalid, expired, or inactive.
  */
 export async function resolveShareToken(token) {
+  console.log(`[resolveShareToken] 🔍 Resolving token: ${token}`);
   const record = await TripShareToken.findOne({ token }).lean();
+  console.log(`[resolveShareToken] 📋 Token record found:`, record ? `yes, tripId: ${record.tripId}, isActive: ${record.isActive}` : 'no');
+  
   if (!record || !record.isActive) {
+    console.log(`[resolveShareToken] ❌ Token invalid or inactive`);
     const err = new Error('Invalid or inactive share link');
     err.statusCode = 404;
     throw err;
   }
 
   if (new Date() > record.expiresAt) {
+    console.log(`[resolveShareToken] ⏰ Token expired at ${record.expiresAt}`);
     const err = new Error('Share link has expired');
     err.statusCode = 410;
     throw err;
   }
 
   const trip = await Trip.findById(record.tripId).lean();
+  console.log(`[resolveShareToken] 🚗 Trip found:`, trip ? `yes, status: ${trip.status}, _id: ${trip._id}` : 'no');
+  
   if (!trip) {
+    console.log(`[resolveShareToken] ❌ Trip not found for tripId: ${record.tripId}`);
     const err = new Error('Trip no longer exists');
     err.statusCode = 404;
     throw err;
@@ -213,12 +221,14 @@ export async function resolveShareToken(token) {
 
   // Automatically deactivate if trip ended
   if (['COMPLETED', 'CANCELLED'].includes(trip.status)) {
+    console.log(`[resolveShareToken] 🛑 Trip status is ${trip.status}, deactivating link`);
     await TripShareToken.updateOne({ token }, { $set: { isActive: false } });
     const err = new Error('Share link has expired because the trip has ended');
     err.statusCode = 410;
     throw err;
   }
 
+  console.log(`[resolveShareToken] ✅ Successfully resolved token to trip ${trip._id}`);
   return { trip, expiresAt: record.expiresAt };
 }
 
