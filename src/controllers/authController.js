@@ -6,6 +6,7 @@ import isStrongPassword from "../utils/passwordValidator.js";
 import { generateToken } from "../services/token.service.js";
 import { sendEmail } from "../services/email.service.js";
 import { generateOTP, verifyOTP } from "../utils/otp.utils.js";
+import { recordFailedLogin, clearLoginAttempts } from "../middlewares/loginAttempt.middleware.js";
 
 /**
  * @fileoverview Authentication Controller
@@ -220,14 +221,32 @@ export const loginUser = async (req, res) => {
         .json({ message: "Email and password required" });
     }
 
+    const identifier = req.loginIdentifier || `${req.ip}_${email}`;
+
     const user = await User.findOne({ email });
     if (!user) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      // Record failed attempt
+      const result = await recordFailedLogin(identifier);
+      if (result.blocked) {
+        return res.status(429).json({ message: result.message });
+      }
+      return res.status(401).json({ 
+        message: "Invalid credentials",
+        attemptsRemaining: result.remaining 
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
-      return res.status(401).json({ message: "Invalid credentials" });
+      // Record failed attempt
+      const result = await recordFailedLogin(identifier);
+      if (result.blocked) {
+        return res.status(429).json({ message: result.message });
+      }
+      return res.status(401).json({ 
+        message: "Invalid credentials",
+        attemptsRemaining: result.remaining 
+      });
     }
 
     // ⛔ Approval gate
@@ -238,6 +257,9 @@ export const loginUser = async (req, res) => {
         approvalStatus: user.approvalStatus,
       });
     }
+
+    // ✅ Clear failed attempts on successful login
+    await clearLoginAttempts(identifier);
 
     // ✅ Generate token
     const token = generateToken({
