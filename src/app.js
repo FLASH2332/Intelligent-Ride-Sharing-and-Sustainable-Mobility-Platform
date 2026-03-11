@@ -39,7 +39,7 @@ const allowedOrigins = process.env.FRONTEND_URL
 
 // TEMPORARY: Allow all origins for testing
 app.use(cors({
-  origin: "https://green-commute-iota.vercel.app/",  // Accepts all origins
+  origin: "https://green-commute-iota.vercel.app",  // Accepts all origins
   credentials: true
 }));
 
