@@ -8,6 +8,7 @@ import nodemailer from "nodemailer";
  */
 
 let transporter;
+let isInitialized = false;
 
 /**
  * Create Email Transporter
@@ -22,6 +23,8 @@ let transporter;
  * @note For Gmail: use App Password, not regular password
  */
 const createTransporter = async () => {
+  if (isInitialized) return;
+
   // Production: Use real SMTP service
   if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
     transporter = nodemailer.createTransport({
@@ -32,6 +35,7 @@ const createTransporter = async () => {
       },
     });
     console.log("📧 Production email service ready");
+    isInitialized = true;
     return;
   }
 
@@ -54,6 +58,7 @@ const createTransporter = async () => {
     });
 
     console.log("📧 Ethereal Email ready (development mode)");
+    isInitialized = true;
   } catch (error) {
     console.error("⚠️ Email service initialization failed:", error.message);
     console.error("⚠️ Emails will NOT be sent. Configure EMAIL_USER and EMAIL_PASSWORD in production.");
@@ -66,10 +71,9 @@ const createTransporter = async () => {
         return { messageId: 'dummy-id' };
       }
     };
+    isInitialized = true;
   }
 };
-
-await createTransporter();
 
 /**
  * Send Email
@@ -93,6 +97,11 @@ await createTransporter();
  */
 export const sendEmail = async ({ to, subject, html }) => {
   try {
+    // Ensure transporter is initialized
+    if (!isInitialized) {
+      await createTransporter();
+    }
+
     const info = await transporter.sendMail({
       from: process.env.EMAIL_FROM || '"GreenCommute" <no-reply@greencommute.dev>',
       to,
@@ -111,6 +120,7 @@ export const sendEmail = async ({ to, subject, html }) => {
     }
   } catch (error) {
     console.error("📧 Email sending failed:", error.message);
+    console.error("📧 Error details:", error);
     throw new Error("Failed to send email");
   }
 };

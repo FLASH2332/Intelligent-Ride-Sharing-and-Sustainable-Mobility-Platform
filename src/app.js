@@ -32,6 +32,9 @@ import pointRulesRoutes from "./routes/pointRules.routes.js";
 
 const app = express();
 
+// Trust proxy for accurate rate limiting behind Render/Heroku/etc.
+app.set('trust proxy', 1);
+
 // Security: Dynamic CORS configuration (Fix #3)
 //const allowedOrigins = process.env.FRONTEND_URL
 //  ? process.env.FRONTEND_URL.split(',')
